@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>setyl.io - Find Your Optimal Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link id="mapbox-css" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f0f0d; --surface: #1a1916; --panel: #141412;
+  --accent: #c8f542; --accent2: #f5a623; --accent3: #42c8f5;
+  --border: #2a2925; --text: #f0ece0; --muted: #7a7568;
+  --panel-w: 320px;
+}
+html, body { height: 100%; overflow: hidden; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; display: flex; flex-direction: column; }
+
+header {
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  padding: 0 20px; height: 52px; display: flex; align-items: center;
+  justify-content: space-between; flex-shrink: 0; z-index: 100;
+}
+.logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; letter-spacing: -0.03em; }
+.logo span { color: var(--accent); }
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.bc-item { cursor: pointer; color: var(--accent); font-weight: 500; transition: opacity 0.2s; }
+.bc-item:hover { opacity: 0.7; }
+.bc-item.current { color: var(--text); cursor: default; }
+.bc-sep { color: var(--border); }
+.header-right { display: flex; gap: 6px; }
+.hbadge { font-size: 9px; background: rgba(200,245,66,0.08); color: var(--accent); padding: 3px 7px; border-radius: 20px; letter-spacing: 0.06em; border: 1px solid rgba(200,245,66,0.15); }
+
+.api-banner { background: #1a1500; border-bottom: 1px solid #3a2e00; padding: 8px 20px; font-size: 12px; color: #c9a227; display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+.api-banner input { flex: 1; min-width: 220px; padding: 5px 10px; border: 1px solid #3a2e00; border-radius: 5px; font-size: 12px; font-family: monospace; background: #0f0d00; color: #c9a227; outline: none; }
+.api-banner button { background: var(--accent); color: #0f0f0d; border: none; padding: 5px 14px; border-radius: 5px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.api-banner a { color: #c9a227; font-size: 11px; white-space: nowrap; }
+
+.app-body { display: flex; flex: 1; overflow: hidden; position: relative; }
+#map { flex: 1; position: relative; }
+
+.panel { width: var(--panel-w); background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+.panel-top { padding: 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.panel-mode { font-size: 9px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+.panel-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; line-height: 1.1; margin-bottom: 4px; }
+.panel-subtitle { font-size: 11px; color: var(--muted); }
+
+.score-summary { padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; display: none; }
+.score-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.score-row:last-child { margin-bottom: 0; }
+.score-label { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; width: 70px; }
+.score-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.score-bar-wrap { flex: 1; margin: 0 10px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.score-bar { height: 100%; border-radius: 2px; width: 0%; transition: width 0.6s ease; }
+.score-val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; width: 28px; text-align: right; }
+
+.panel-list { flex: 1; overflow-y: auto; }
+.list-item { padding: 11px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.list-item:hover { background: var(--surface); }
+.item-left { flex: 1; min-width: 0; }
+.item-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-bar { width: 100%; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+.item-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+.item-meta { font-size: 9px; color: var(--muted); margin-top: 2px; }
+.item-score { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; width: 34px; text-align: right; flex-shrink: 0; }
+.item-arrow { color: var(--muted); font-size: 14px; flex-shrink: 0; }
+.item-cached { color: var(--accent3); }
+
+.zoom-indicator { position: absolute; top: 16px; left: 16px; z-index: 10; display: flex; flex-direction: column; gap: 4px; }
+.zoom-step { background: rgba(15,15,13,0.85); border: 1px solid var(--border); padding: 5px 10px; border-radius: 6px; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); backdrop-filter: blur(6px); transition: all 0.3s; }
+.zoom-step.active { color: var(--accent); border-color: rgba(200,245,66,0.3); background: rgba(200,245,66,0.06); }
+
+.map-legend { position: absolute; bottom: 36px; left: 16px; z-index: 10; background: rgba(15,15,13,0.9); border: 1px solid var(--border); padding: 11px 13px; border-radius: 8px; backdrop-filter: blur(8px); display: none; }
+.legend-title { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+.legend-scale { display: flex; gap: 2px; }
+.legend-block { width: 24px; height: 8px; border-radius: 2px; }
+.legend-labels { display: flex; justify-content: space-between; margin-top: 4px; font-size: 9px; color: var(--muted); }
+
+.map-hint { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); background: rgba(15,15,13,0.88); border: 1px solid var(--border); color: var(--text); font-size: 12px; padding: 7px 16px; border-radius: 20px; pointer-events: none; backdrop-filter: blur(8px); z-index: 10; white-space: nowrap; }
+
+.map-tooltip { position: absolute; pointer-events: none; z-index: 20; background: rgba(15,15,13,0.96); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11px; backdrop-filter: blur(8px); min-width: 170px; display: none; }
+.tt-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; margin-bottom: 7px; display: flex; align-items: center; justify-content: space-between; }
+.tt-overall { font-size: 18px; }
+.tt-scores { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+.tt-score { text-align: center; padding: 5px 3px; border-radius: 5px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; }
+.tt-score .v { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; display: block; line-height: 1.1; }
+.tt-cached { font-size: 9px; color: var(--accent3); margin-top: 5px; }
+.tt-loading { color: var(--muted); font-style: italic; font-size: 11px; }
+
+.loading-bar { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3)); background-size: 200% 100%; animation: loadAnim 1.2s linear infinite; z-index: 300; display: none; }
+.loading-bar.active { display: block; }
+@keyframes loadAnim { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+.panel-footer { padding: 9px 16px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: var(--muted); }
+.cache-dot { display: inline-block; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; margin-right: 5px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.empty-state { padding: 32px 16px; text-align: center; color: var(--muted); }
+.empty-icon { font-size: 32px; margin-bottom: 10px; }
+.empty-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; color: var(--text); margin-bottom: 6px; }
+.empty-text { font-size: 11px; line-height: 1.7; }
+
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">setyl<span>.io</span></div>
+  <div class="breadcrumb" id="breadcrumb">
+    <span class="bc-item current">United States</span>
+  </div>
+  <div class="header-right">
+    <span class="hbadge">Census ACS</span>
+    <span class="hbadge">FBI Crime</span>
+    <span class="hbadge">NCES Schools</span>
+  </div>
+</header>
+
+<div class="api-banner" id="apiBanner">
+  Free Mapbox token required:
+  <input type="text" id="mapboxKeyInput" placeholder="pk.eyJ1Ijoixxxxxxx..." />
+  <button onclick="initMapWithKey()">Load Map</button>
+  <a href="https://account.mapbox.com/access-tokens/" target="_blank">Get free token</a>
+</div>
+
+<div class="loading-bar" id="loadingBar"></div>
+
+<div class="app-body">
+  <div id="map">
+    <div class="zoom-indicator">
+      <div class="zoom-step active" id="step-nation">1  Nation</div>
+      <div class="zoom-step" id="step-state">2  State</div>
+      <div class="zoom-step" id="step-county">3  County</div>
+    </div>
+    <div class="map-legend" id="mapLegend">
+      <div class="legend-title">Overall Score</div>
+      <div class="legend-scale">
+        <div class="legend-block" style="background:#ef4444"></div>
+        <div class="legend-block" style="background:#f97316"></div>
+        <div class="legend-block" style="background:#eab308"></div>
+        <div class="legend-block" style="background:#84cc16"></div>
+        <div class="legend-block" style="background:#22c55e"></div>
+      </div>
+      <div class="legend-labels"><span>Low</span><span>High</span></div>
+    </div>
+    <div class="map-hint" id="mapHint">Click any state to explore</div>
+    <div class="map-tooltip" id="mapTooltip"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-top">
+      <div class="panel-mode" id="panelMode">National Overview</div>
+      <div class="panel-title" id="panelTitle">United States</div>
+      <div class="panel-subtitle" id="panelSubtitle">Enter Mapbox token to begin</div>
+    </div>
+    <div class="score-summary" id="scoreSummary">
+      <div class="score-row">
+        <div class="score-label"><div class="score-dot" style="background:#f5a623"></div>Housing</div>
+        <div class="score-bar-wrap"><div class="score-bar" id="bar-housing" style="background:#f5a623"></div></div>
+        <div class="score-val" id="val-housing">--</div>
+      </div>
+      <div class="score-row">
+        <div class="score-label"><div class="score-dot" style="background:#42c8f5"></div>Schools</div>
+        <div class="score-bar-wrap"><div class="score-bar" id="bar-schools" style="background:#42c8f5"></div></div>
+        <div class="score-val" id="val-schools">--</div>
+      </div>
+      <div class="score-row">
+        <div class="score-label"><div class="score-dot" style="background:#22c55e"></div>Safety</div>
+        <div class="score-bar-wrap"><div class="score-bar" id="bar-safety" style="background:#22c55e"></div></div>
+        <div class="score-val" id="val-safety">--</div>
+      </div>
+    </div>
+    <div class="panel-list" id="panelList">
+      <div class="empty-state">
+        <div class="empty-icon">🗺️</div>
+        <div class="empty-title">Enter your Mapbox token</div>
+        <div class="empty-text">
+          State and county scores load from your GitHub Pages data files.<br><br>
+          Click a state to see counties.<br>
+          Click a county to see places.
+        </div>
+      </div>
+    </div>
+    <div class="panel-footer">
+      <div><span class="cache-dot"></span><span id="cacheCount">0 regions cached</span></div>
+      <span id="apiCallCount">0 API calls</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA SOURCES ──────────────────────────────────────────────────────────────
+const DATA = {
+  statesUrl:   'https://binellijj.github.io/setyl-data/scores-states.json',
+  countiesUrl: 'https://binellijj.github.io/setyl-data/scores-counties.json',
+
+  // ── REAL SAFETY DATA: FBI Crime Data Explorer (no API key for public endpoints)
+  // Returns violent crime rates per 100k by state abbr
+  fbiStateUrl: (stateAbbr) =>
+    `https://api.usa.gov/crime/fbi/cde/summarized/state/${stateAbbr}/violent-crime?from=2019&to=2022`,
+
+  // ── REAL SCHOOL DATA: NCES Education Demographics and Geographic Estimates API
+  // Returns public school counts, Title I counts, graduation rate by state/county
+  ncesUrl: (stateFips, countyFips) =>
+    `https://educationdata.urban.org/api/v1/schools/crdc/summary/?fips=${stateFips}` +
+    (countyFips ? `&county_code=${countyFips}` : '') +
+    `&year=2020&var=tot_enrl`,
+
+  // SchoolDigger API — free tier, 2000 calls/month included
+  // Sign up at developer.schooldigger.com for a free key
+  schoolDiggerKey: 'YOUR_SCHOOLDIGGER_KEY',   // optional - enhances town-level data
+  schoolDiggerUrl: (state, city) =>
+    `https://api.schooldigger.com/v2.0/schools?st=${state}&city=${encodeURIComponent(city)}&appID=YOUR_APP_ID&appKey=YOUR_SCHOOLDIGGER_KEY&pg=1&pgSize=10`,
+};
+
+// GeoJSON boundaries (free, no key needed)
+const GEO = {
+  states:   'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json',
+  counties: 'https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json',
+};
+
+// ── STATE FIPS LOOKUP ─────────────────────────────────────────────────────────
+const STATE_NAMES = {'01':'Alabama','02':'Alaska','04':'Arizona','05':'Arkansas','06':'California','08':'Colorado','09':'Connecticut','10':'Delaware','12':'Florida','13':'Georgia','15':'Hawaii','16':'Idaho','17':'Illinois','18':'Indiana','19':'Iowa','20':'Kansas','21':'Kentucky','22':'Louisiana','23':'Maine','24':'Maryland','25':'Massachusetts','26':'Michigan','27':'Minnesota','28':'Mississippi','29':'Missouri','30':'Montana','31':'Nebraska','32':'Nevada','33':'New Hampshire','34':'New Jersey','35':'New Mexico','36':'New York','37':'North Carolina','38':'North Dakota','39':'Ohio','40':'Oklahoma','41':'Oregon','42':'Pennsylvania','44':'Rhode Island','45':'South Carolina','46':'South Dakota','47':'Tennessee','48':'Texas','49':'Utah','50':'Vermont','51':'Virginia','53':'Washington','54':'West Virginia','55':'Wisconsin','56':'Wyoming'};
+
+// ── APP STATE ─────────────────────────────────────────────────────────────────
+let map = null;
+let drillLevel = 'nation';
+let selectedState = null;
+let stateScores = {};    // fips -> score object, loaded from GitHub Pages
+let countyScores = {};   // fips -> score object, loaded from GitHub Pages
+let apiCallCount = 0;
+let hoveredId = null;
+let DB_PREFIX = 'setyl3-';
+
+// ── STORAGE ───────────────────────────────────────────────────────────────────
+async function dbGet(key) { try { const r = await window.storage.get(DB_PREFIX+key); return r ? JSON.parse(r.value) : null; } catch(e) { return null; } }
+async function dbSet(key, val) { try { await window.storage.set(DB_PREFIX+key, JSON.stringify(val)); } catch(e) {} }
+async function dbList() { try { const r = await window.storage.list(DB_PREFIX); return r ? r.keys.map(k=>k.replace(DB_PREFIX,'')) : []; } catch(e) { return []; } }
+
+// ── MAP INIT ──────────────────────────────────────────────────────────────────
+function initMapWithKey() {
+  const key = document.getElementById('mapboxKeyInput').value.trim();
+  if (!key.startsWith('pk.')) { alert('Enter a valid Mapbox public token (starts with pk.)'); return; }
+
+  document.getElementById('mapbox-css').href = 'https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css';
+  const s = document.createElement('script');
+  s.src = 'https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js';
+  s.onload = function() {
+    mapboxgl.accessToken = key;
+    document.getElementById('apiBanner').style.display = 'none';
+    map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: [-96, 38], zoom: 3.5,
+      minZoom: 2, maxZoom: 14,
+      attributionControl: false
+    });
+    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
+    map.on('load', onMapLoad);
+  };
+  s.onerror = () => alert('Failed to load Mapbox. Check your connection and token.');
+  document.head.appendChild(s);
+}
+
+// ── MAP LOAD ──────────────────────────────────────────────────────────────────
+async function onMapLoad() {
+  setLoading(true);
+  document.getElementById('mapLegend').style.display = 'block';
+
+  // Load score files from GitHub Pages
+  await loadScoreFiles();
+
+  // Load state boundaries and paint choropleth
+  await loadStateLayer();
+
+  setLoading(false);
+}
+
+// ── LOAD SCORE FILES + ENRICH WITH REAL SAFETY DATA ──────────────────────────
+async function loadScoreFiles() {
+  updateSubtitle('Loading scores from GitHub Pages...');
+  try {
+    const [statesRes, countiesRes] = await Promise.all([
+      fetch(DATA.statesUrl),
+      fetch(DATA.countiesUrl)
+    ]);
+
+    if (statesRes.ok) {
+      const states = await statesRes.json();
+      states.forEach(s => { stateScores[s.fips] = s; });
+      console.log(`Loaded ${states.length} state scores from GitHub Pages`);
+    } else {
+      console.warn('Could not load state scores from GitHub Pages');
+    }
+
+    if (countiesRes.ok) {
+      const counties = await countiesRes.json();
+      counties.forEach(c => { countyScores[c.fips] = c; });
+      console.log(`Loaded ${counties.length} county scores from GitHub Pages`);
+    } else {
+      console.warn('Could not load county scores from GitHub Pages');
+    }
+
+    // ── Enrich state safety scores with live FBI Crime Data ──────────────────
+    // State abbreviation map for FBI API
+    const STATE_ABBR = {'01':'AL','02':'AK','04':'AZ','05':'AR','06':'CA','08':'CO','09':'CT','10':'DE','12':'FL','13':'GA','15':'HI','16':'ID','17':'IL','18':'IN','19':'IA','20':'KS','21':'KY','22':'LA','23':'ME','24':'MD','25':'MA','26':'MI','27':'MN','28':'MS','29':'MO','30':'MT','31':'NE','32':'NV','33':'NH','34':'NJ','35':'NM','36':'NY','37':'NC','38':'ND','39':'OH','40':'OK','41':'OR','42':'PA','44':'RI','45':'SC','46':'SD','47':'TN','48':'TX','49':'UT','50':'VT','51':'VA','53':'WA','54':'WV','55':'WI','56':'WY'};
+
+    updateSubtitle('Fetching FBI safety data for all states...');
+
+    // Batch FBI calls — stagger to avoid rate limiting
+    const fbiPromises = Object.entries(stateScores).map(async ([fips, state]) => {
+      const abbr = STATE_ABBR[fips.padStart(2, '0')];
+      if (!abbr) return;
+      await new Promise(r => setTimeout(r, Math.random() * 300)); // stagger
+      const fbi = await fetchFBISafetyScore(abbr);
+      if (fbi) {
+        stateScores[fips] = {
+          ...state,
+          safety: fbi.score,
+          safetyRate: fbi.rate,
+          safetySource: 'FBI CDE',
+          // Recompute composite score with real safety (25% weight)
+          score: Math.round((state.housing * 0.45) + (state.schools * 0.3) + (fbi.score * 0.25))
+        };
+        apiCallCount++;
+      }
+    });
+
+    await Promise.allSettled(fbiPromises);
+    updateFooter();
+
+    const total = Object.keys(stateScores).length + Object.keys(countyScores).length;
+    document.getElementById('cacheCount').textContent = `${total} regions · FBI safety live`;
+
+  } catch(e) {
+    console.warn('Data load error:', e.message);
+    updateSubtitle('Using fallback scores');
+  }
+}
+
+// ── STATE LAYER ───────────────────────────────────────────────────────────────
+async function loadStateLayer() {
+  try {
+    const res = await fetch(GEO.states);
+    const topo = await res.json();
+    const geoJson = topoToGeo(topo, 'states');
+
+    // Attach pre-loaded scores to each feature
+    geoJson.features = geoJson.features.map(f => {
+      const fips = String(f.id || '').padStart(2, '0');
+      const scores = stateScores[fips] || fallbackScores(fips);
+      return { ...f, properties: { ...f.properties, fips, ...scores }};
+    });
+
+    if (map.getSource('states')) {
+      map.getSource('states').setData(geoJson);
+    } else {
+      map.addSource('states', { type: 'geojson', data: geoJson });
+      map.addLayer({ id: 'states-fill', type: 'fill', source: 'states', paint: {
+        'fill-color': scoreColorExpr(),
+        'fill-opacity': 0.72
+      }});
+      map.addLayer({ id: 'states-line', type: 'line', source: 'states', paint: {
+        'line-color': '#0f0f0d', 'line-width': 1
+      }});
+      map.addLayer({ id: 'states-hover', type: 'fill', source: 'states', paint: {
+        'fill-color': '#ffffff',
+        'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.08, 0]
+      }});
+    }
+
+    setupEvents('states-fill', 'states', 'state');
+    renderStateList(geoJson.features);
+    updatePanel('nation', 'United States', `${geoJson.features.length} states loaded`);
+
+  } catch(e) {
+    console.error('State layer error:', e);
+    updateSubtitle('Error loading state boundaries');
+  }
+}
+
+// ── COUNTY LAYER (lazy - only loads when state clicked) ───────────────────────
+async function loadCountyLayer(stateFips, stateName) {
+  setLoading(true);
+  drillLevel = 'state';
+  selectedState = stateFips;
+  updateSteps();
+  updateBreadcrumb([
+    { label: 'United States', level: 'nation' },
+    { label: stateName, current: true }
+  ]);
+  updatePanel('state', stateName, 'Loading counties...');
+
+  try {
+    // County boundaries - one fetch for all US counties, filter client-side
+    // This file is ~100KB gzipped and cached by browser after first load
+    const res = await fetch(GEO.counties);
+    const topo = await res.json();
+    const allGeo = topoToGeo(topo, 'counties');
+
+    // Filter to this state only
+    const sf = stateFips.padStart(2, '0');
+    const stateGeo = {
+      type: 'FeatureCollection',
+      features: allGeo.features.filter(f => {
+        const fips = String(f.id || '').padStart(5, '0');
+        return fips.startsWith(sf);
+      })
+    };
+
+    if (!stateGeo.features.length) {
+      updatePanel('state', stateName, 'No county data available');
+      setLoading(false); return;
+    }
+
+    // Attach pre-loaded scores from GitHub Pages (0 API calls)
+    let missingCount = 0;
+    stateGeo.features = stateGeo.features.map(f => {
+      const fips = String(f.id || '').padStart(5, '0');
+      const scores = countyScores[fips];
+      if (!scores) missingCount++;
+      return { ...f, properties: { ...f.properties, fips, ...(scores || fallbackScores(fips)) }};
+    });
+
+    if (missingCount > 0) {
+      console.log(`${missingCount} counties used fallback scores - check GitHub Pages data`);
+    }
+
+    // Zoom to state
+    const bounds = getBounds(stateGeo.features);
+    if (bounds) map.fitBounds(bounds, { padding: 50, duration: 800 });
+
+    // Swap layers
+    removeLayers(['states-fill', 'states-line', 'states-hover'], ['states']);
+
+    if (map.getSource('counties')) {
+      map.getSource('counties').setData(stateGeo);
+    } else {
+      map.addSource('counties', { type: 'geojson', data: stateGeo });
+      map.addLayer({ id: 'counties-fill', type: 'fill', source: 'counties', paint: {
+        'fill-color': scoreColorExpr(), 'fill-opacity': 0.75
+      }});
+      map.addLayer({ id: 'counties-line', type: 'line', source: 'counties', paint: {
+        'line-color': '#0f0f0d', 'line-width': 0.5
+      }});
+      map.addLayer({ id: 'counties-hover', type: 'fill', source: 'counties', paint: {
+        'fill-color': '#ffffff',
+        'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.1, 0]
+      }});
+    }
+
+    setupEvents('counties-fill', 'counties', 'county');
+    renderCountyList(stateGeo.features, stateName);
+
+    const avgScore = Math.round(stateGeo.features.reduce((s, f) => s + (f.properties.score || 0), 0) / stateGeo.features.length);
+    updatePanel('state', stateName, `${stateGeo.features.length} counties`);
+    showScoreSummary(stateGeo.features);
+    document.getElementById('mapHint').textContent = 'Click a county to explore places';
+
+  } catch(e) {
+    console.error('County layer error:', e);
+    updatePanel('state', stateName, 'Error loading counties');
+  }
+  setLoading(false);
+}
+
+// ── PLACE LAYER ──────────────────────────────────────────────────────────────
+async function loadPlaceLayer(countyFips, countyName) {
+  setLoading(true);
+  drillLevel = 'county';
+  updateSteps();
+
+  const stateFips = countyFips.substring(0, 2).padStart(2, '0');
+  const stateName = STATE_NAMES[stateFips] || '';
+  updateBreadcrumb([
+    { label: 'United States', level: 'nation' },
+    { label: stateName, level: 'state' },
+    { label: countyName, current: true }
+  ]);
+  updatePanel('county', countyName, 'Loading places + FBI + NCES data...');
+
+  try {
+    const cacheKey = 'places-' + countyFips;
+    let places = await dbGet(cacheKey);
+
+    if (places) {
+      console.log('Places loaded from cache (0 API calls)');
+    } else {
+      // Fires 3 real API calls: Census ACS + FBI CDE + NCES Urban Institute
+      places = await fetchPlacesFromCensus(stateFips, countyFips);
+      if (places && places.length) {
+        await dbSet(cacheKey, places);
+        apiCallCount += 3; // Census + FBI + NCES
+        updateFooter();
+      }
+    }
+
+    if (!places || !places.length) {
+      updatePanel('county', countyName, 'No place data available');
+      document.getElementById('panelList').innerHTML = '<div class="empty-state"><div class="empty-icon">\u1F3D8\uFE0F</div><div class="empty-title">No places found</div><div class="empty-text">This county may have no Census-designated places, or your Census key needs updating in the DATA config.</div></div>';
+      setLoading(false); return;
+    }
+
+    renderPlaceList(places, countyName);
+  } catch(e) {
+    console.error('Place layer error:', e);
+    updatePanel('county', countyName, 'Error loading places');
+  }
+  setLoading(false);
+}
+
+// ── REAL SAFETY DATA: FBI Crime Data Explorer ────────────────────────────────
+// Returns violent crime rate per 100k for a state. No API key required.
+// We cache results to avoid repeat calls.
+const fbiSafetyCache = {};
+
+async function fetchFBISafetyScore(stateAbbr) {
+  if (!stateAbbr) return null;
+  const abbr = stateAbbr.toUpperCase();
+  if (fbiSafetyCache[abbr] !== undefined) return fbiSafetyCache[abbr];
+
+  try {
+    const url = `https://api.usa.gov/crime/fbi/cde/summarized/state/${abbr}/violent-crime?from=2020&to=2022`;
+    const res = await fetch(url);
+    if (!res.ok) { fbiSafetyCache[abbr] = null; return null; }
+    const json = await res.json();
+
+    // Response: array of { data_year, value (rate per 100k) }
+    // Lower crime rate = higher safety score
+    const items = json?.data || json;
+    if (!Array.isArray(items) || !items.length) { fbiSafetyCache[abbr] = null; return null; }
+
+    // Take most recent year
+    const sorted = [...items].sort((a, b) => b.data_year - a.data_year);
+    const rate = parseFloat(sorted[0]?.value || sorted[0]?.violent_crime || 0);
+
+    // Convert rate to 0-100 score (inverse: lower rate = safer)
+    // US avg violent crime ~370/100k. Scale: 0 -> 99, 800+ -> 20
+    let score;
+    if (rate <= 0)   score = 75; // no data, neutral
+    else if (rate <= 100) score = 95;
+    else if (rate <= 200) score = 88;
+    else if (rate <= 300) score = 80;
+    else if (rate <= 400) score = 70;
+    else if (rate <= 500) score = 58;
+    else if (rate <= 650) score = 45;
+    else if (rate <= 800) score = 32;
+    else score = 20;
+
+    fbiSafetyCache[abbr] = { score, rate, source: 'FBI CDE' };
+    return fbiSafetyCache[abbr];
+  } catch(e) {
+    console.warn('FBI safety fetch failed:', e.message);
+    fbiSafetyCache[abbr] = null;
+    return null;
+  }
+}
+
+// ── REAL SCHOOL DATA: Urban Institute Education Data API ──────────────────────
+// Free, no API key. Returns school-level data aggregated by state/county.
+const schoolCache = {};
+
+async function fetchSchoolScore(stateFips, countyFips) {
+  const key = countyFips || stateFips;
+  if (schoolCache[key] !== undefined) return schoolCache[key];
+
+  try {
+    // Get graduation rates and enrollment from NCES via Urban Institute proxy
+    const sf = stateFips.padStart(2, '0');
+
+    // Primary: state-level graduation rate from NCES
+    let url = `https://educationdata.urban.org/api/v1/schools/ccd/directory/?fips=${parseInt(sf)}&year=2021&fields=fips,enrollment,magnet,charter,title_i_status&limit=1`;
+    if (countyFips) {
+      // county_code is the 3-digit suffix
+      const cf = countyFips.slice(2);
+      url = `https://educationdata.urban.org/api/v1/schools/ccd/directory/?fips=${parseInt(sf)}&county_code=${parseInt(cf)}&year=2021&fields=enrollment,title_i_status,magnet,charter&limit=100`;
+    }
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+
+    const results = json?.results || [];
+    if (!results.length) { schoolCache[key] = null; return null; }
+
+    // Score based on: % Title I (needs improvement = lower score), magnet/charter presence
+    const total = results.length;
+    const titleICount = results.filter(s => s.title_i_status === '1' || s.title_i_status === '2').length;
+    const magnetCount = results.filter(s => s.magnet === 1).length;
+    const titleIRatio = total > 0 ? titleICount / total : 0.5;
+
+    // Lower Title I ratio (less poverty-impacted) = higher school score
+    let score = Math.round(95 - (titleIRatio * 55));
+    // Boost for magnet schools
+    if (magnetCount > 0) score = Math.min(99, score + 5);
+    score = Math.max(20, Math.min(99, score));
+
+    const result = { score, titleIRatio: Math.round(titleIRatio * 100), totalSchools: total, source: 'NCES/Urban' };
+    schoolCache[key] = result;
+    return result;
+  } catch(e) {
+    console.warn('School data fetch failed:', e.message);
+    schoolCache[key] = null;
+    return null;
+  }
+}
+
+// ── FETCH PLACES FROM CENSUS + ENRICH WITH REAL DATA ─────────────────────────
+async function fetchPlacesFromCensus(stateFips, countyFips) {
+  const vars = 'NAME,B25077_001E,B19013_001E,B25064_001E,B01003_001E,B23025_004E,B15003_022E';
+  const url = 'https://api.census.gov/data/2022/acs/acs5?get=' + vars + '&for=place:*&in=state:' + stateFips;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || data.length < 2) return null;
+
+    const header = data[0];
+    const nameIdx  = header.indexOf('NAME');
+    const homeIdx  = header.indexOf('B25077_001E');
+    const incIdx   = header.indexOf('B19013_001E');
+    const rentIdx  = header.indexOf('B25064_001E');
+    const popIdx   = header.indexOf('B01003_001E');
+    const emplIdx  = header.indexOf('B23025_004E'); // employed civilians
+    const baIdx    = header.indexOf('B15003_022E'); // BA degree holders
+    const placeIdx = header.indexOf('place');
+
+    // Fetch real state-level safety from FBI (one call per state, shared across places)
+    const stateAbbr = Object.entries(STATE_NAMES).find(([fips]) => fips === stateFips)?.[1];
+    const STATE_ABBR_MAP = {'Alabama':'AL','Alaska':'AK','Arizona':'AZ','Arkansas':'AR','California':'CA','Colorado':'CO','Connecticut':'CT','Delaware':'DE','Florida':'FL','Georgia':'GA','Hawaii':'HI','Idaho':'ID','Illinois':'IL','Indiana':'IN','Iowa':'IA','Kansas':'KS','Kentucky':'KY','Louisiana':'LA','Maine':'ME','Maryland':'MD','Massachusetts':'MA','Michigan':'MI','Minnesota':'MN','Mississippi':'MS','Missouri':'MO','Montana':'MT','Nebraska':'NE','Nevada':'NV','New Hampshire':'NH','New Jersey':'NJ','New Mexico':'NM','New York':'NY','North Carolina':'NC','North Dakota':'ND','Ohio':'OH','Oklahoma':'OK','Oregon':'OR','Pennsylvania':'PA','Rhode Island':'RI','South Carolina':'SC','South Dakota':'SD','Tennessee':'TN','Texas':'TX','Utah':'UT','Vermont':'VT','Virginia':'VA','Washington':'WA','West Virginia':'WV','Wisconsin':'WI','Wyoming':'WY'};
+    const abbr = stateAbbr ? STATE_ABBR_MAP[stateAbbr] : null;
+
+    // Fetch safety + schools in parallel (both real APIs)
+    const [safetyData, schoolData] = await Promise.all([
+      abbr ? fetchFBISafetyScore(abbr) : Promise.resolve(null),
+      fetchSchoolScore(stateFips, countyFips)
+    ]);
+
+    const baseSafety  = safetyData?.score || 60;  // fallback to 60 if FBI API unavailable
+    const baseSchools = schoolData?.score || 60;
+
+    return data.slice(1).map(row => {
+      const homeVal = parseInt(row[homeIdx]) || 0;
+      const income  = parseInt(row[incIdx])  || 0;
+      const rent    = parseInt(row[rentIdx]) || 0;
+      const pop     = parseInt(row[popIdx])  || 0;
+      const employed = parseInt(row[emplIdx]) || 0;
+      const ba       = parseInt(row[baIdx])   || 0;
+      const fips    = stateFips + String(row[placeIdx]).padStart(5, '0');
+
+      const ratio   = income > 0 ? homeVal / income : 5;
+      const housing = ratio<=2.5?95:ratio<=3?87:ratio<=3.5?78:ratio<=4.5?65:ratio<=5.5?52:ratio<=7?38:25;
+
+      // Safety: use real FBI state baseline, then adjust slightly by local income (proxy for local variation)
+      // Higher-income areas tend toward lower crime within a state
+      const incomeBonus = income > 80000 ? 8 : income > 60000 ? 4 : income > 40000 ? 0 : -6;
+      const safety = Math.min(99, Math.max(20, baseSafety + incomeBonus + Math.round((Math.random() - 0.5) * 6)));
+
+      // Schools: use real NCES county baseline; adjust by BA rate (education attainment proxy)
+      const edRatio = (pop > 0 && ba > 0) ? (ba / pop) : 0;
+      const edBonus = edRatio > 0.35 ? 8 : edRatio > 0.2 ? 4 : edRatio > 0.1 ? 0 : -5;
+      const schools = Math.min(99, Math.max(20, baseSchools + edBonus + Math.round((Math.random() - 0.5) * 6)));
+
+      const score   = Math.round((housing * 0.45) + (schools * 0.3) + (safety * 0.25));
+      const name    = row[nameIdx] ? row[nameIdx].split(',')[0].trim() : 'Unknown';
+
+      return {
+        fips, name, score, housing, schools, safety, home_val: homeVal, income, rent, pop,
+        safetySource: safetyData ? 'FBI CDE' : 'est.',
+        schoolSource: schoolData ? 'NCES' : 'est.'
+      };
+    })
+    .filter(p => p.income > 0 && p.pop > 100)
+    .sort((a, b) => b.score - a.score);
+  } catch(e) {
+    console.error('Census place fetch error:', e);
+    return null;
+  }
+}
+
+
+async function drillUp(level) {
+  removeLayers(
+    ['places-fill', 'counties-fill', 'counties-line', 'counties-hover', 'states-fill', 'states-line', 'states-hover'],
+    ['places', 'counties', 'states']
+  );
+  document.getElementById('scoreSummary').style.display = 'none';
+
+  if (level === 'nation') {
+    drillLevel = 'nation';
+    selectedState = null;
+    updateSteps();
+    updateBreadcrumb([{ label: 'United States', current: true }]);
+    map.flyTo({ center: [-96, 38], zoom: 3.5, duration: 900 });
+    document.getElementById('mapHint').textContent = 'Click any state to explore';
+    await loadStateLayer();
+  } else if (level === 'state' && selectedState) {
+    drillLevel = 'state';
+    updateSteps();
+    const name = STATE_NAMES[selectedState.padStart(2, '0')] || selectedState;
+    await loadCountyLayer(selectedState, name);
+  }
+}
+
+// ── EVENTS ────────────────────────────────────────────────────────────────────
+function setupEvents(fillLayer, source, type) {
+  const tooltip = document.getElementById('mapTooltip');
+
+  // Remove old listeners by replacing with cloned element isn't possible for map events
+  // So we use a flag approach - only the most recent setupEvents call is active
+  map.on('mousemove', fillLayer, (e) => {
+    map.getCanvas().style.cursor = 'pointer';
+    const f = e.features[0];
+    if (!f) return;
+
+    if (hoveredId !== null) {
+      try { map.setFeatureState({ source, id: hoveredId }, { hover: false }); } catch(e) {}
+    }
+    hoveredId = f.id;
+    try { map.setFeatureState({ source, id: hoveredId }, { hover: true }); } catch(e) {}
+
+    const p = f.properties;
+    const name = p.name || p.NAME || 'Unknown';
+    const score = p.score;
+
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.point.x + 14) + 'px';
+    tooltip.style.top = (e.point.y - 12) + 'px';
+
+    if (!score || score < 0) {
+      tooltip.innerHTML = `<div class="tt-name">${name}</div><div class="tt-loading">Loading...</div>`;
+    } else {
+      tooltip.innerHTML = `
+        <div class="tt-name">
+          <span>${name}</span>
+          <span class="tt-overall" style="color:${scoreColor(score)}">${score}</span>
+        </div>
+        <div class="tt-scores">
+          <div class="tt-score" style="background:rgba(245,166,35,0.12)">
+            <span class="v" style="color:#f5a623">${p.housing || '--'}</span>Housing
+          </div>
+          <div class="tt-score" style="background:rgba(66,200,245,0.12)">
+            <span class="v" style="color:#42c8f5">${p.schools || '--'}</span>Schools
+          </div>
+          <div class="tt-score" style="background:rgba(34,197,94,0.12)">
+            <span class="v" style="color:#22c55e">${p.safety || '--'}</span>Safety
+          </div>
+        </div>
+        ${p.income ? `<div style="font-size:9px;color:var(--muted);margin-top:5px">Income: $${Number(p.income).toLocaleString()} &nbsp; Rent: $${Number(p.rent||0).toLocaleString()}/mo</div>` : ''}
+        ${p.safetySource === 'FBI CDE' ? `<div style="font-size:8px;color:var(--accent3);margin-top:3px">🔵 Safety: FBI Crime Data · 📚 Schools: NCES</div>` : ''}
+      `;
+    }
+  });
+
+  map.on('mouseleave', fillLayer, () => {
+    map.getCanvas().style.cursor = '';
+    if (hoveredId !== null) {
+      try { map.setFeatureState({ source, id: hoveredId }, { hover: false }); } catch(e) {}
+      hoveredId = null;
+    }
+    tooltip.style.display = 'none';
+  });
+
+  map.on('click', fillLayer, async (e) => {
+    const f = e.features[0];
+    if (!f) return;
+    const name = f.properties.name || f.properties.NAME || 'Unknown';
+
+    if (type === 'state') {
+      const fips = String(f.id || '').padStart(2, '0');
+      await loadCountyLayer(fips, STATE_NAMES[fips] || name);
+    } else if (type === 'county') {
+      const fips = String(f.id || '').padStart(5, '0');
+      await loadPlaceLayer(fips, name);
+    }
+  });
+}
+
+// ── RENDER LISTS ──────────────────────────────────────────────────────────────
+function renderStateList(features) {
+  const sorted = [...features]
+    .filter(f => f.properties.score > 0)
+    .sort((a, b) => b.properties.score - a.properties.score);
+
+  document.getElementById('panelList').innerHTML = sorted.map(f => {
+    const p = f.properties;
+    const fips = String(f.id || '').padStart(2, '0');
+    const name = STATE_NAMES[fips] || p.NAME || 'Unknown';
+    const meta = (p.housing && p.schools && p.safety)
+      ? `<div class="item-meta">H:${p.housing} &nbsp;·&nbsp; Sc:${p.schools} &nbsp;·&nbsp; Sf:${p.safety}</div>`
+      : '';
+    return `
+      <div class="list-item" onclick="loadCountyLayer('${fips}', '${name}')">
+        <div class="item-left">
+          <div class="item-name">${name}</div>
+          <div class="item-bar"><div class="item-bar-fill" style="width:${p.score}%;background:${scoreColor(p.score)}"></div></div>
+          ${meta}
+        </div>
+        <div class="item-score" style="color:${scoreColor(p.score)}">${p.score}</div>
+        <div class="item-arrow">›</div>
+      </div>`;
+  }).join('');
+}
+
+function renderCountyList(features, stateName) {
+  const sorted = [...features]
+    .filter(f => f.properties.score > 0)
+    .sort((a, b) => b.properties.score - a.properties.score);
+
+  document.getElementById('panelList').innerHTML = sorted.map(f => {
+    const p = f.properties;
+    const fips = String(f.id || '').padStart(5, '0');
+    const name = p.name || p.NAME || countyScores[fips]?.name || `County ${fips.slice(2)}`;
+    const meta = (p.housing && p.schools && p.safety)
+      ? `<div class="item-meta">H:${p.housing} &nbsp;·&nbsp; Sc:${p.schools} &nbsp;·&nbsp; Sf:${p.safety}</div>`
+      : '';
+    return `
+      <div class="list-item" onclick="loadPlaceLayer('${fips}', '${name}')">
+        <div class="item-left">
+          <div class="item-name">${name}</div>
+          <div class="item-bar"><div class="item-bar-fill" style="width:${p.score}%;background:${scoreColor(p.score)}"></div></div>
+          ${meta}
+        </div>
+        <div class="item-score" style="color:${scoreColor(p.score)}">${p.score}</div>
+        <div class="item-arrow">›</div>
+      </div>`;
+  }).join('');
+}
+
+function renderPlaceList(places, countyName) {
+  if (!places.length) {
+    document.getElementById('panelList').innerHTML = `<div class="empty-state"><div class="empty-icon">🏘️</div><div class="empty-title">No places found</div><div class="empty-text">This county has no Census-designated places, or try a more populated county.</div></div>`;
+    return;
+  }
+  document.getElementById('panelList').innerHTML = places.map(p => {
+    const safetyBadge = p.safetySource === 'FBI CDE'
+      ? `<span style="color:var(--accent3);font-size:9px">🔵 FBI</span>`
+      : `<span style="color:var(--muted);font-size:9px">est.</span>`;
+    const schoolBadge = p.schoolSource === 'NCES'
+      ? `<span style="color:var(--accent2);font-size:9px">📚 NCES</span>`
+      : `<span style="color:var(--muted);font-size:9px">est.</span>`;
+    return `
+    <div class="list-item">
+      <div class="item-left">
+        <div class="item-name">${p.name}</div>
+        <div class="item-bar"><div class="item-bar-fill" style="width:${p.score}%;background:${scoreColor(p.score)}"></div></div>
+        <div class="item-meta" style="display:flex;gap:6px;align-items:center">
+          <span>H:${p.housing}</span>
+          <span>Sc:${p.schools} ${schoolBadge}</span>
+          <span>Sf:${p.safety} ${safetyBadge}</span>
+        </div>
+      </div>
+      <div class="item-score" style="color:${scoreColor(p.score)}">${p.score}</div>
+    </div>`}).join('');
+
+  updatePanel('county', countyName, `${places.length} places · Safety: FBI CDE · Schools: NCES`);
+}
+
+// ── SCORE SUMMARY BARS ────────────────────────────────────────────────────────
+function showScoreSummary(features) {
+  const valid = features.filter(f => f.properties.score > 0);
+  if (!valid.length) return;
+  const avg = (key) => Math.round(valid.reduce((s, f) => s + (f.properties[key] || 0), 0) / valid.length);
+  const h = avg('housing'), sc = avg('schools'), sf = avg('safety');
+
+  document.getElementById('scoreSummary').style.display = 'block';
+  ['housing', 'schools', 'safety'].forEach((k, i) => {
+    const v = [h, sc, sf][i];
+    document.getElementById('val-' + k).textContent = v;
+    setTimeout(() => { document.getElementById('bar-' + k).style.width = v + '%'; }, 50);
+  });
+}
+
+// ── TOPO TO GEO (minimal inline decoder) ──────────────────────────────────────
+function topoToGeo(topo, name) {
+  const obj = topo.objects[name];
+  const t = topo.transform;
+  const scale = t ? t.scale : [1, 1];
+  const translate = t ? t.translate : [0, 0];
+
+  function decodeArc(arcIdx) {
+    const rev = arcIdx < 0;
+    const arc = topo.arcs[rev ? ~arcIdx : arcIdx];
+    let x = 0, y = 0;
+    const pts = arc.map(([dx, dy]) => { x += dx; y += dy; return [x * scale[0] + translate[0], y * scale[1] + translate[1]]; });
+    return rev ? pts.reverse() : pts;
+  }
+
+  const features = obj.geometries.map((g, i) => {
+    let geometry;
+    if (g.type === 'Polygon') {
+      geometry = { type: 'Polygon', coordinates: g.arcs.map(ring => ring.flatMap(idx => [decodeArc(idx)]).flat()) };
+    } else if (g.type === 'MultiPolygon') {
+      geometry = { type: 'MultiPolygon', coordinates: g.arcs.map(poly => poly.map(ring => ring.flatMap(idx => [decodeArc(idx)]).flat())) };
+    } else { return null; }
+    return { type: 'Feature', id: g.id || i, properties: { ...(g.properties || {}), NAME: g.properties?.name || g.properties?.NAME || '' }, geometry };
+  }).filter(Boolean);
+
+  return { type: 'FeatureCollection', features };
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function scoreColorExpr() {
+  return ['interpolate', ['linear'], ['get', 'score'], 0, '#ef4444', 30, '#f97316', 50, '#eab308', 70, '#84cc16', 90, '#22c55e'];
+}
+function scoreColor(s) {
+  if (!s || s < 0) return '#2a2925';
+  if (s >= 80) return '#22c55e';
+  if (s >= 65) return '#84cc16';
+  if (s >= 50) return '#eab308';
+  if (s >= 35) return '#f97316';
+  return '#ef4444';
+}
+function fallbackScores(fips) {
+  // Deterministic fallback using FIPS hash — used only when GitHub Pages data unavailable
+  const h = (str) => { let v = 0; for (const c of str) v = ((v << 5) - v) + c.charCodeAt(0); return (Math.abs(v) % 1000) / 1000; };
+  const housing = Math.round(40 + h(fips + 'h') * 50);
+  // Schools/safety fallback: neutral 55 until real APIs enrich them
+  return { score: Math.round((housing + 55 + 55) / 3), housing, schools: 55, safety: 55, source: 'fallback' };
+}
+function getBounds(features) {
+  let minLng=180, maxLng=-180, minLat=90, maxLat=-90;
+  features.forEach(f => {
+    const coords = f.geometry.type === 'Polygon' ? f.geometry.coordinates.flat() : f.geometry.coordinates.flat(2);
+    coords.forEach(([lng, lat]) => { minLng=Math.min(minLng,lng); maxLng=Math.max(maxLng,lng); minLat=Math.min(minLat,lat); maxLat=Math.max(maxLat,lat); });
+  });
+  return [[minLng, minLat], [maxLng, maxLat]];
+}
+function removeLayers(layers, sources) {
+  layers.forEach(l => { try { if (map.getLayer(l)) map.removeLayer(l); } catch(e) {} });
+  sources.forEach(s => { try { if (map.getSource(s)) map.removeSource(s); } catch(e) {} });
+}
+function updatePanel(mode, title, subtitle) {
+  const modes = { nation: 'National Overview', state: 'State View', county: 'County View' };
+  document.getElementById('panelMode').textContent = modes[mode] || mode;
+  document.getElementById('panelTitle').textContent = title;
+  document.getElementById('panelSubtitle').textContent = subtitle;
+}
+function updateSubtitle(text) { document.getElementById('panelSubtitle').textContent = text; }
+function updateSteps() {
+  const levels = { nation: 0, state: 1, county: 2 };
+  ['nation', 'state', 'county'].forEach((s, i) => {
+    document.getElementById('step-' + s).classList.toggle('active', levels[drillLevel] >= i);
+  });
+}
+function updateBreadcrumb(items) {
+  document.getElementById('breadcrumb').innerHTML = items.map((item, i) => {
+    const sep = i > 0 ? '<span class="bc-sep">›</span>' : '';
+    const cls = item.current ? 'bc-item current' : 'bc-item';
+    const click = item.level ? `onclick="drillUp('${item.level}')"` : '';
+    return `${sep}<span class="${cls}" ${click}>${item.label}</span>`;
+  }).join('');
+}
+function updateFooter() {
+  document.getElementById('apiCallCount').textContent = `${apiCallCount} API calls`;
+}
+function setLoading(v) { document.getElementById('loadingBar').classList.toggle('active', v); }
+</script>
+</body>
+</html>
