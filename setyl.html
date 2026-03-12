@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Setyl — Find Your Place</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js">
+// ── FAQ DRAWER ──────────────────────────────────────────────────────────────
+function openFaq() {
+  document.getElementById('faq-drawer').classList.add('open');
+  document.getElementById('faq-overlay').classList.add('show');
+}
+function closeFaq() {
+  document.getElementById('faq-drawer').classList.remove('open');
+  document.getElementById('faq-overlay').classList.remove('show');
+}
+function faqToggle(btn) {
+  btn.closest('.faq-item').classList.toggle('open');
+}
+function faqTab(btn, cat) {
+  // Update active tab
+  document.querySelectorAll('.faq-tab').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  // Show/hide sections and items
+  const all = cat === 'all';
+  document.querySelectorAll('[data-cat]').forEach(el => {
+    el.style.display = (all || el.dataset.cat === cat) ? '' : 'none';
+  });
+  // Scroll drawer back to top
+  document.getElementById('faq-body').scrollTop = 0;
+}
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js">
+// ── FAQ DRAWER ──────────────────────────────────────────────────────────────
+function openFaq() {
+  document.getElementById('faq-drawer').classList.add('open');
+  document.getElementById('faq-overlay').classList.add('show');
+}
+function closeFaq() {
+  document.getElementById('faq-drawer').classList.remove('open');
+  document.getElementById('faq-overlay').classList.remove('show');
+}
+function faqToggle(btn) {
+  btn.closest('.faq-item').classList.toggle('open');
+}
+function faqTab(btn, cat) {
+  // Update active tab
+  document.querySelectorAll('.faq-tab').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  // Show/hide sections and items
+  const all = cat === 'all';
+  document.querySelectorAll('[data-cat]').forEach(el => {
+    el.style.display = (all || el.dataset.cat === cat) ? '' : 'none';
+  });
+  // Scroll drawer back to top
+  document.getElementById('faq-body').scrollTop = 0;
+}
+
+</script>
+<style>
+/* ── RESET & VARS ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:        #080810;
+  --panel-bg:  #0d0d18;
+  --card:      #12121f;
+  --border:    #1e1e32;
+  --border-hi: #2e2e4e;
+  --text:      #e2e4f0;
+  --muted:     #525270;
+  --faint:     #282840;
+  --housing:   #f6c90e;
+  --safety:    #22d98a;
+  --schools:   #3fb4f5;
+  --danger:    #f5455c;
+  --panel-w:   340px;
+}
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+}
+
+/* ── SETUP OVERLAY ── */
+#setup {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.setup-box {
+  background: var(--card);
+  border: 1px solid var(--border-hi);
+  border-radius: 16px;
+  padding: 44px 40px;
+  width: 100%; max-width: 440px;
+}
+.s-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 38px; font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1; margin-bottom: 6px;
+}
+.s-logo span { color: var(--housing); }
+.s-sub {
+  font-size: 13px; color: var(--muted);
+  line-height: 1.65; margin-bottom: 32px;
+}
+.s-label {
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--muted); margin-bottom: 7px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.s-label a { color: var(--housing); text-decoration: none; font-size: 9px; }
+.s-label a:hover { text-decoration: underline; }
+.s-input {
+  width: 100%; padding: 11px 14px;
+  background: var(--bg); border: 1px solid var(--border-hi);
+  border-radius: 8px; color: var(--text);
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  outline: none; margin-bottom: 16px;
+  transition: border-color .15s;
+}
+.s-input:focus { border-color: var(--housing); }
+.s-btn {
+  width: 100%; padding: 13px;
+  background: var(--housing); color: #000;
+  border: none; border-radius: 8px;
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 15px; cursor: pointer;
+  transition: opacity .15s, transform .1s;
+}
+.s-btn:hover { opacity: .88; }
+.s-btn:active { transform: scale(.99); }
+.s-err { font-size: 11px; color: var(--danger); margin-top: 8px; display: none; }
+
+/* ── PANEL ── */
+#panel {
+  width: var(--panel-w); flex-shrink: 0;
+  height: 100%; background: var(--panel-bg);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden; z-index: 5;
+}
+.p-head {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.p-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 24px; font-weight: 800;
+  letter-spacing: -0.5px; line-height: 1;
+  margin-bottom: 2px;
+}
+.p-logo span { color: var(--housing); }
+.p-sub {
+  font-size: 9px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .12em; font-weight: 500;
+}
+/* breadcrumb */
+#bc {
+  padding: 9px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; flex-wrap: wrap;
+  align-items: center; gap: 3px;
+  flex-shrink: 0; min-height: 36px;
+}
+.bc-item {
+  font-size: 11px; font-weight: 500;
+  color: var(--muted); cursor: pointer;
+  transition: color .12s; white-space: nowrap;
+}
+.bc-item:hover { color: var(--text); }
+.bc-item.active { color: var(--text); cursor: default; }
+.bc-sep { font-size: 9px; color: var(--faint); }
+
+/* avg score bars */
+#avgs {
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0; display: none;
+}
+.avgs-title {
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--muted); margin-bottom: 10px;
+}
+.avg-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+}
+.avg-row:last-child { margin-bottom: 0; }
+.avg-lbl {
+  font-size: 10px; font-weight: 500;
+  width: 58px; flex-shrink: 0;
+}
+.avg-track {
+  flex: 1; height: 3px;
+  background: var(--faint); border-radius: 2px; overflow: hidden;
+}
+.avg-fill { height: 100%; border-radius: 2px; transition: width .55s ease; }
+.avg-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; width: 22px; text-align: right; flex-shrink: 0;
+}
+
+/* list */
+#list { flex: 1; overflow-y: auto; overflow-x: hidden; }
+#list::-webkit-scrollbar { width: 3px; }
+#list::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+.list-hd {
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--muted); padding: 12px 20px 5px;
+}
+.list-msg {
+  padding: 40px 20px; text-align: center;
+  color: var(--muted); font-size: 13px; line-height: 1.7;
+}
+.list-msg .em { font-size: 28px; margin-bottom: 10px; }
+.row {
+  display: flex; align-items: center;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px; cursor: pointer;
+  transition: background .1s;
+}
+.row:hover { background: rgba(255,255,255,.025); }
+.row:last-child { border-bottom: none; }
+.row.no-click { cursor: default; }
+.row-body { flex: 1; min-width: 0; }
+.row-name {
+  font-size: 13px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+.row-bar {
+  height: 2px; background: var(--faint);
+  border-radius: 1px; margin-bottom: 5px; overflow: hidden;
+}
+.row-fill { height: 100%; border-radius: 1px; }
+.row-meta {
+  display: flex; gap: 7px; flex-wrap: wrap;
+  font-size: 9px; color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.tag { font-size: 8px; opacity: .6; }
+.row-score {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px; font-weight: 800;
+  flex-shrink: 0; line-height: 1; width: 34px; text-align: right;
+}
+/* crime/source banner */
+.banner {
+  padding: 8px 20px; font-size: 10px;
+  color: var(--muted); line-height: 1.5;
+  border-bottom: 1px solid var(--border);
+}
+.banner.crime { background: rgba(34,217,138,.04); }
+.banner.nocrime { background: rgba(255,255,255,.02); }
+.banner strong { color: var(--text); }
+
+/* footer */
+.p-foot {
+  padding: 9px 20px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.p-foot-stat {
+  font-size: 9px; color: var(--faint);
+  font-family: 'JetBrains Mono', monospace;
+}
+.badges { display: flex; gap: 4px; }
+.badge {
+  font-size: 7px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: 2px 6px; border-radius: 3px;
+}
+.badge-c { background: rgba(246,201,14,.1); color: var(--housing); }
+.badge-f { background: rgba(34,217,138,.1);  color: var(--safety); }
+.badge-n { background: rgba(63,180,245,.1);  color: var(--schools); }
+
+/* ── MAP ── */
+#map-wrap { flex: 1; position: relative; overflow: hidden; }
+#map { width: 100%; height: 100%; }
+
+/* loading spinner */
+#spinner {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  display: none; flex-direction: column;
+  align-items: center; gap: 10px; pointer-events: none; z-index: 10;
+}
+#spinner.on { display: flex; }
+.spin-ring {
+  width: 28px; height: 28px;
+  border: 2px solid var(--border-hi);
+  border-top-color: var(--housing);
+  border-radius: 50%;
+  animation: spin .65s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin-txt { font-size: 11px; color: var(--muted); }
+
+/* hint pill */
+#hint {
+  position: absolute; bottom: 26px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(8,8,16,.9); backdrop-filter: blur(8px);
+  border: 1px solid var(--border-hi);
+  padding: 6px 16px; border-radius: 20px;
+  font-size: 11px; color: var(--muted);
+  pointer-events: none; white-space: nowrap;
+  transition: opacity .3s;
+}
+/* legend */
+#legend {
+  position: absolute; bottom: 26px; right: 14px;
+  background: rgba(8,8,16,.9); backdrop-filter: blur(8px);
+  border: 1px solid var(--border-hi);
+  border-radius: 8px; padding: 9px 11px; pointer-events: none;
+}
+.leg-title {
+  font-size: 8px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--muted); margin-bottom: 5px;
+}
+.leg-bar {
+  width: 108px; height: 5px; border-radius: 3px;
+  background: linear-gradient(to right, #f5455c, #f6c90e, #22d98a);
+  margin-bottom: 4px;
+}
+.leg-lbl {
+  display: flex; justify-content: space-between;
+  font-size: 8px; color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* tooltip */
+#tt {
+  position: absolute; pointer-events: none;
+  background: rgba(8,8,16,.96); backdrop-filter: blur(12px);
+  border: 1px solid var(--border-hi); border-radius: 9px;
+  padding: 10px 13px; min-width: 160px; max-width: 210px;
+  display: none; z-index: 20;
+}
+.tt-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 7px;
+}
+.tt-name { font-size: 12px; font-weight: 600; }
+.tt-score {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px; font-weight: 800; line-height: 1;
+}
+.tt-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px; margin-bottom: 6px;
+}
+.tt-cell {
+  background: var(--faint); border-radius: 5px;
+  padding: 5px 3px; text-align: center;
+}
+.tt-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; }
+.tt-lbl { font-size: 7px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-top: 1px; }
+.tt-info { font-size: 9px; color: var(--muted); line-height: 1.5; }
+/* crime tooltip block */
+.tt-crime {
+  border-top: 1px solid var(--border);
+  margin-top: 6px; padding-top: 6px;
+}
+.tt-cr {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 10px; margin-bottom: 3px;
+}
+.tt-cr span { color: var(--muted); }
+.tt-cr strong { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; }
+.tt-cr-src { font-size: 8px; color: var(--faint); margin-top: 2px; }
+/* ── SORT BAR ── */
+#sort-bar {
+  display: none;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+#sort-bar.visible { display: flex; }
+.sort-lbl {
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--muted); margin-right: 2px; flex-shrink: 0;
+}
+.sort-btn {
+  font-size: 10px; font-weight: 600;
+  padding: 3px 9px; border-radius: 20px;
+  border: 1px solid var(--border-hi);
+  background: transparent; color: var(--muted);
+  cursor: pointer; transition: all .15s;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: .02em;
+}
+.sort-btn:hover { border-color: var(--text); color: var(--text); }
+.sort-btn.active { color: #000; border-color: transparent; }
+.sort-btn.s-overall  { --c: #a0a0c0; }
+.sort-btn.s-housing  { --c: var(--housing); }
+.sort-btn.s-safety   { --c: var(--safety);  }
+.sort-btn.s-schools  { --c: var(--schools); }
+.sort-btn.active { background: var(--c); color: #000; }
+
+/* ── FAQ DRAWER ── */
+#faq-drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(600px, 100vw);
+  background: var(--panel-bg);
+  border-left: 1px solid var(--border-hi);
+  z-index: 200;
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .35s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: -20px 0 60px rgba(0,0,0,.6);
+}
+#faq-drawer.open { transform: translateX(0); }
+#faq-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(3px);
+  z-index: 199;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s;
+}
+#faq-overlay.show { opacity: 1; pointer-events: all; }
+
+/* drawer header */
+.faq-dhead {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.faq-dtitle {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px; font-weight: 800;
+  letter-spacing: -.3px;
+}
+.faq-dtitle span { color: var(--housing); }
+.faq-close {
+  width: 30px; height: 30px;
+  background: var(--card); border: 1px solid var(--border-hi);
+  border-radius: 50%; color: var(--muted);
+  font-size: 16px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+  line-height: 1;
+}
+.faq-close:hover { background: var(--border-hi); color: var(--text); }
+
+/* drawer nav tabs */
+.faq-tabs {
+  display: flex; gap: 2px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0; flex-wrap: wrap;
+}
+.faq-tab {
+  font-size: 10px; font-weight: 600;
+  padding: 4px 10px; border-radius: 20px;
+  border: 1px solid var(--border-hi);
+  background: transparent; color: var(--muted);
+  cursor: pointer; transition: all .12s;
+  letter-spacing: .04em; text-transform: uppercase;
+  font-family: 'Inter', sans-serif;
+}
+.faq-tab:hover { color: var(--text); border-color: var(--text); }
+.faq-tab.on { color: #000; border-color: transparent; }
+.faq-tab.t-all      { --c: #a0a0c0; }
+.faq-tab.t-housing  { --c: var(--housing); }
+.faq-tab.t-safety   { --c: var(--safety); }
+.faq-tab.t-schools  { --c: var(--schools); }
+.faq-tab.t-score    { --c: #a78bfa; }
+.faq-tab.t-limits   { --c: var(--danger); }
+.faq-tab.on { background: var(--c); }
+
+/* drawer body */
+.faq-body {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 0;
+}
+.faq-body::-webkit-scrollbar { width: 3px; }
+.faq-body::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+/* section headers inside drawer */
+.faq-sec {
+  padding: 20px 22px 0;
+}
+.faq-sec-tag {
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .14em;
+  margin-bottom: 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.faq-sec-tag::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.faq-sec h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px; font-weight: 800;
+  letter-spacing: -.3px; margin-bottom: 16px;
+}
+
+/* accordion items */
+.faq-item {
+  border-bottom: 1px solid var(--border);
+  margin: 0 22px;
+}
+.faq-item:last-child { border-bottom: none; }
+.faq-q {
+  width: 100%; display: flex;
+  justify-content: space-between; align-items: center;
+  padding: 14px 0; background: none; border: none;
+  color: var(--text); font-family: 'Inter', sans-serif;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer; text-align: left; gap: 12px;
+  transition: color .12s;
+}
+.faq-q:hover { color: var(--housing); }
+.faq-chevron {
+  flex-shrink: 0; width: 18px; height: 18px;
+  border: 1px solid var(--border-hi); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--muted);
+  transition: transform .22s, background .15s, border-color .15s;
+}
+.faq-item.open .faq-chevron {
+  transform: rotate(45deg);
+  background: var(--housing); border-color: var(--housing); color: #000;
+}
+.faq-a {
+  max-height: 0; overflow: hidden;
+  transition: max-height .35s ease, padding .3s ease;
+}
+.faq-item.open .faq-a { max-height: 900px; padding-bottom: 18px; }
+.faq-a-inner {
+  font-size: 12px; color: var(--muted); line-height: 1.75;
+}
+.faq-a-inner p { margin-bottom: 10px; }
+.faq-a-inner p:last-child { margin-bottom: 0; }
+.faq-a-inner strong { color: var(--text); font-weight: 500; }
+.faq-a-inner a { color: var(--housing); text-decoration: none; }
+.faq-a-inner a:hover { text-decoration: underline; }
+
+/* formula block */
+.formula {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-hi);
+  border-radius: 6px; padding: 12px 14px; margin: 10px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text); line-height: 1.7;
+}
+.formula .cm  { color: var(--muted); }
+.formula .vh  { color: var(--housing); }
+.formula .vs  { color: var(--safety); }
+.formula .vsc { color: var(--schools); }
+
+/* tier table */
+.ftable {
+  width: 100%; border-collapse: collapse;
+  margin: 10px 0; font-size: 11px;
+}
+.ftable th {
+  text-align: left; padding: 6px 10px;
+  font-size: 8px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--muted); border-bottom: 1px solid var(--border);
+}
+.ftable td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--faint);
+  font-family: 'JetBrains Mono', monospace; color: var(--text);
+}
+.ftable tr:last-child td { border-bottom: none; }
+
+/* source pill */
+.spill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9px; font-weight: 700;
+  padding: 2px 8px; border-radius: 20px;
+  margin: 3px 2px 3px 0;
+  text-transform: uppercase; letter-spacing: .06em;
+}
+.sp-c  { background: rgba(246,201,14,.12); color: var(--housing); border: 1px solid rgba(246,201,14,.2); }
+.sp-f  { background: rgba(34,217,138,.12);  color: var(--safety);  border: 1px solid rgba(34,217,138,.2); }
+.sp-n  { background: rgba(63,180,245,.12);  color: var(--schools); border: 1px solid rgba(63,180,245,.2); }
+
+/* limit box */
+.lbox {
+  background: rgba(245,69,92,.06);
+  border: 1px solid rgba(245,69,92,.2);
+  border-radius: 6px; padding: 10px 12px;
+  margin: 10px 0; font-size: 11px;
+  color: var(--muted); line-height: 1.7;
+}
+.lbox strong { color: #f5455c; }
+
+/* updated badge */
+.ubadge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--card); border: 1px solid var(--border-hi);
+  border-radius: 5px; padding: 4px 10px;
+  font-size: 10px; color: var(--muted);
+  font-family: 'JetBrains Mono', monospace; margin-bottom: 8px;
+}
+.ubadge .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* faq trigger btn in panel footer */
+.faq-trigger {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 600;
+  color: var(--muted); background: none; border: none;
+  cursor: pointer; transition: color .12s;
+  letter-spacing: .04em; font-family: 'Inter', sans-serif;
+  text-transform: uppercase;
+}
+.faq-trigger:hover { color: var(--text); }
+.faq-trigger-icon {
+  width: 18px; height: 18px;
+  border: 1px solid var(--border-hi); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-style: normal;
+}
+</style>
+</head>
+<body>
+
+<!-- ── SETUP ── -->
+<div id="setup">
+  <div class="setup-box">
+    <div class="s-logo">setyl<span>.io</span></div>
+    <div class="s-sub">Explore home affordability, safety, and schools across every state and county in the US.</div>
+    <div class="s-label">
+      Mapbox Public Token
+      <a href="https://account.mapbox.com/access-tokens/" target="_blank">Get free token →</a>
+    </div>
+    <input id="mb-tok" class="s-input" type="text" placeholder="pk.eyJ1IjoiLi4uIn0..." spellcheck="false" autocomplete="off">
+    <div id="mb-err" class="s-err">Token must start with "pk." — check your Mapbox account.</div>
+    <button class="s-btn" onclick="launch()">Open Map</button>
+  </div>
+</div>
+
+<!-- ── PANEL ── -->
+<div id="panel">
+  <div class="p-head">
+    <div class="p-logo">setyl<span>.io</span></div>
+    <div class="p-sub">Move Smarter</div>
+  </div>
+  <div id="bc"><span class="bc-item active">United States</span></div>
+  <div id="avgs">
+    <div class="avgs-title">Region Averages</div>
+    <div class="avg-row">
+      <span class="avg-lbl" style="color:var(--housing)">Housing</span>
+      <div class="avg-track"><div class="avg-fill" id="af-h" style="background:var(--housing);width:0%"></div></div>
+      <span class="avg-num" id="an-h" style="color:var(--housing)">—</span>
+    </div>
+    <div class="avg-row">
+      <span class="avg-lbl" style="color:var(--safety)">Safety</span>
+      <div class="avg-track"><div class="avg-fill" id="af-s" style="background:var(--safety);width:0%"></div></div>
+      <span class="avg-num" id="an-s" style="color:var(--safety)">—</span>
+    </div>
+    <div class="avg-row">
+      <span class="avg-lbl" style="color:var(--schools)">Schools</span>
+      <div class="avg-track"><div class="avg-fill" id="af-sc" style="background:var(--schools);width:0%"></div></div>
+      <span class="avg-num" id="an-sc" style="color:var(--schools)">—</span>
+    </div>
+  </div>
+  <div id="sort-bar">
+    <span class="sort-lbl">Sort</span>
+    <button class="sort-btn s-overall active"  onclick="setSort('score')">Overall</button>
+    <button class="sort-btn s-housing"          onclick="setSort('housing')">Affordability</button>
+    <button class="sort-btn s-safety"           onclick="setSort('safety')">Safety</button>
+    <button class="sort-btn s-schools"          onclick="setSort('schools')">Schools</button>
+  </div>
+  <div id="list"><div class="list-msg"><div class="em">🗺</div>Enter your token to start exploring.</div></div>
+  <div class="p-foot">
+    <span class="p-foot-stat" id="foot-stat">—</span>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="badges">
+        <span class="badge badge-c">Census</span>
+        <span class="badge badge-f">FBI</span>
+        <span class="badge badge-n">NCES</span>
+      </div>
+      <button class="faq-trigger" onclick="openFaq()">
+        <span class="faq-trigger-icon">?</span>How it works
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAP ── -->
+<div id="map-wrap">
+  <div id="map"></div>
+  <div id="spinner"><div class="spin-ring"></div><div class="spin-txt" id="spin-txt">Loading…</div></div>
+  <div id="hint">Click a state to explore</div>
+  <div id="legend">
+    <div class="leg-title">Affordability Score</div>
+    <div class="leg-bar"></div>
+    <div class="leg-lbl"><span>Low</span><span>High</span></div>
+  </div>
+  <div id="tt"></div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════════
+const GH   = 'https://binellijj.github.io/setyl-data';
+const TOPO = 'https://cdn.jsdelivr.net/npm/us-atlas@3';
+const CENSUS_URL = 'https://api.census.gov/data/2022/acs/acs5';
+const NCES_URL   = 'https://educationdata.urban.org/api/v1/schools/ccd/directory/';
+
+// FIPS → state name
+const STATES = {
+  '01':'Alabama','02':'Alaska','04':'Arizona','05':'Arkansas','06':'California',
+  '08':'Colorado','09':'Connecticut','10':'Delaware','11':'DC','12':'Florida',
+  '13':'Georgia','15':'Hawaii','16':'Idaho','17':'Illinois','18':'Indiana',
+  '19':'Iowa','20':'Kansas','21':'Kentucky','22':'Louisiana','23':'Maine',
+  '24':'Maryland','25':'Massachusetts','26':'Michigan','27':'Minnesota',
+  '28':'Mississippi','29':'Missouri','30':'Montana','31':'Nebraska','32':'Nevada',
+  '33':'New Hampshire','34':'New Jersey','35':'New Mexico','36':'New York',
+  '37':'North Carolina','38':'North Dakota','39':'Ohio','40':'Oklahoma',
+  '41':'Oregon','42':'Pennsylvania','44':'Rhode Island','45':'South Carolina',
+  '46':'South Dakota','47':'Tennessee','48':'Texas','49':'Utah','50':'Vermont',
+  '51':'Virginia','53':'Washington','54':'West Virginia','55':'Wisconsin','56':'Wyoming'
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════════════════════════════════════════
+let map;
+let stateData   = {};   // fips2 → {score, housing, safety, schools, name, ...}
+let countyData  = {};   // fips5 → {score, housing, safety, schools, name, pop, ...}
+let crimeData   = {};   // fips5 → {murder, violent_crime, property_crime, ...}
+let hovId = null, hovSrc = null;
+let curLevel = 'nation', curStateFips = null;
+let sortKey = 'score';  // current sort dimension
+let lastCountyFeatures = null, lastPlaces = null, lastCountyFips = null, lastCountyName = null;
+const schoolCache = {}, placeCache = {};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════════════════════
+function scoreColor(s) {
+  if (!s || s <= 0) return '#1e1e32';
+  if (s >= 80) return '#22d98a';
+  if (s >= 65) return '#7ed87a';
+  if (s >= 55) return '#c8d545';
+  if (s >= 45) return '#f6c90e';
+  if (s >= 35) return '#f07830';
+  return '#f5455c';
+}
+
+// Mapbox expression: score → fill color
+function colorExpr() {
+  const field = (sortKey === 'score') ? 'score' : sortKey;
+  // Each dimension gets its own color ramp
+  const ramps = {
+    score:   [0,'#0d0d18', 20,'#f5455c', 38,'#f07830', 50,'#f6c90e', 65,'#c8d545', 80,'#22d98a', 99,'#00ffaa'],
+    housing: [0,'#0d0d18', 20,'#f5455c', 38,'#f07830', 50,'#f6c90e', 65,'#c8d545', 80,'#22d98a', 99,'#00ffaa'],
+    safety:  [0,'#0d0d18', 20,'#f5455c', 38,'#f07830', 50,'#f6c90e', 65,'#c8d545', 80,'#22d98a', 99,'#00ffaa'],
+    schools: [0,'#0d0d18', 20,'#f5455c', 38,'#f07830', 50,'#f6c90e', 65,'#c8d545', 80,'#22d98a', 99,'#00ffaa'],
+  };
+  const stops = ramps[field] || ramps.score;
+  return ['interpolate', ['linear'], ['coalesce', ['get', field], 0], ...stops];
+}
+
+function updateMapColors() {
+  ['sf', 'cf'].forEach(layer => {
+    if (map && map.getLayer(layer)) {
+      map.setPaintProperty(layer, 'fill-color', colorExpr());
+    }
+  });
+  updateLegend();
+}
+
+function updateLegend() {
+  const cfg = {
+    score:   { label: 'Overall Score',    gradient: 'linear-gradient(to right,#f5455c,#f6c90e,#22d98a)' },
+    housing: { label: 'Affordability',    gradient: 'linear-gradient(to right,#f5455c,#f6c90e,#22d98a)' },
+    safety:  { label: 'Safety',           gradient: 'linear-gradient(to right,#f5455c,#f6c90e,#22d98a)' },
+    schools: { label: 'Schools',          gradient: 'linear-gradient(to right,#f5455c,#f6c90e,#22d98a)' },
+  };
+  const c = cfg[sortKey] || cfg.score;
+  document.querySelector('.leg-title').textContent = c.label;
+  document.querySelector('.leg-bar').style.background = c.gradient;
+}
+
+function fmt(n)  { return (n != null && n > 0) ? Number(n).toLocaleString() : 'NULL'; }
+function fmtS(s) { return (s != null && s > 0) ? s : 'NULL'; }
+
+function spin(on, msg = 'Loading…') {
+  document.getElementById('spinner').classList.toggle('on', on);
+  document.getElementById('spin-txt').textContent = msg;
+}
+function setHint(t)     { document.getElementById('hint').textContent = t; }
+function setFooter(t)   { document.getElementById('foot-stat').textContent = t; }
+
+function showAvgs(items) {
+  if (!items || !items.length) { document.getElementById('avgs').style.display = 'none'; return; }
+  document.getElementById('avgs').style.display = 'block';
+  const avg = (key) => {
+    const valid = items.filter(x => (x[key] || 0) > 0);
+    return valid.length ? Math.round(valid.reduce((s, x) => s + (x[key] || 0), 0) / valid.length) : null;
+  };
+  [['h','housing'], ['s','safety'], ['sc','schools']].forEach(([id, key]) => {
+    const v = avg(key);
+    document.getElementById('af-' + id).style.width  = (v || 0) + '%';
+    document.getElementById('an-' + id).textContent  = v ?? '—';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BREADCRUMB
+// ═══════════════════════════════════════════════════════════════════════════════
+function setBreadcrumb(crumbs) {
+  // crumbs: [{label, fn}] — last one is always active (no fn)
+  document.getElementById('bc').innerHTML = crumbs.map((c, i) => {
+    const isLast = i === crumbs.length - 1;
+    const sep    = i > 0 ? '<span class="bc-sep">›</span>' : '';
+    const cls    = 'bc-item' + (isLast ? ' active' : '');
+    const click  = (!isLast && c.fn) ? `onclick="${c.fn}"` : '';
+    return `${sep}<span class="${cls}" ${click}>${c.label}</span>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TOOLTIP
+// ═══════════════════════════════════════════════════════════════════════════════
+function showTT(e, p, name, fips) {
+  const tt = document.getElementById('tt');
+  const s  = p.score || 0;
+  tt.style.display = 'block';
+  tt.style.left    = (e.point.x + 16) + 'px';
+  tt.style.top     = (e.point.y - 10) + 'px';
+
+  // Crime block — only at county level
+  let crimeBlock = '';
+  if (fips) {
+    const cd  = crimeData[fips];
+    const pop = countyData[fips]?.pop || p.pop || 0;
+    if (cd && cd.violent_crime > 0 && pop > 0) {
+      const rate = ((cd.violent_crime / pop) * 100000).toFixed(0);
+      const m    = cd.murder || 0;
+      crimeBlock = `
+        <div class="tt-crime">
+          <div class="tt-cr"><span>Violent crimes</span><strong>${Number(cd.violent_crime).toLocaleString()}</strong></div>
+          <div class="tt-cr"><span>Per 100k residents</span><strong>${Number(rate).toLocaleString()}</strong></div>
+          <div class="tt-cr"><span>Murders</span><strong style="color:${m > 0 ? 'var(--danger)' : 'var(--muted)'}">${m > 0 ? m : '—'}</strong></div>
+          <div class="tt-cr-src">2024 FBI CIUS</div>
+        </div>`;
+    } else {
+      crimeBlock = `<div class="tt-crime"><div class="tt-cr-src" style="color:var(--faint)">No FBI crime data for this county</div></div>`;
+    }
+  }
+
+  tt.innerHTML = `
+    <div class="tt-head">
+      <span class="tt-name">${name}</span>
+      <span class="tt-score" style="color:${scoreColor(s)}">${fmtS(s)}</span>
+    </div>
+    <div class="tt-grid">
+      <div class="tt-cell">
+        <div class="tt-val" style="color:var(--housing)">${fmtS(p.housing)}</div>
+        <div class="tt-lbl">Afford</div>
+      </div>
+      <div class="tt-cell">
+        <div class="tt-val" style="color:var(--safety)">${fmtS(p.safety)}</div>
+        <div class="tt-lbl">Safety</div>
+      </div>
+      <div class="tt-cell">
+        <div class="tt-val" style="color:var(--schools)">${fmtS(p.schools)}</div>
+        <div class="tt-lbl">Schools</div>
+      </div>
+    </div>
+    ${crimeBlock}
+    ${(p.income || p.home_val) ? `<div class="tt-info">Income: $${fmt(p.income)} &nbsp;·&nbsp; Home: $${fmt(p.home_val)}</div>` : ''}`;
+}
+function hideTT() { document.getElementById('tt').style.display = 'none'; }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LAYER HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+function rmLayer(id)  { try { if (map.getLayer(id))  map.removeLayer(id);  } catch(e) {} }
+function rmSource(id) { try { if (map.getSource(id)) map.removeSource(id); } catch(e) {} }
+
+function clearHover() {
+  if (hovId !== null && hovSrc) {
+    try { map.setFeatureState({ source: hovSrc, id: hovId }, { hover: false }); } catch(e) {}
+  }
+  hovId = null; hovSrc = null;
+}
+
+function setupHoverAndClick(fillLayer, source, getNameFn, onClickFn, getFipsFn) {
+  map.on('mousemove', fillLayer, (e) => {
+    map.getCanvas().style.cursor = 'pointer';
+    const f = e.features[0];
+    if (!f) return;
+    clearHover();
+    hovId = f.id; hovSrc = source;
+    map.setFeatureState({ source, id: hovId }, { hover: true });
+    const fips = getFipsFn ? getFipsFn(f) : null;
+    showTT(e, f.properties, getNameFn(f), fips);
+  });
+  map.on('mouseleave', fillLayer, () => {
+    map.getCanvas().style.cursor = '';
+    clearHover();
+    hideTT();
+  });
+  if (onClickFn) {
+    map.on('click', fillLayer, (e) => {
+      const f = e.features[0];
+      if (f) onClickFn(f);
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCORING HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+function housingScore(homeVal, income) {
+  if (!income || income <= 0) return null;
+  const ratio = homeVal / income;
+  if (ratio <= 2.5) return 95;
+  if (ratio <= 3.0) return 87;
+  if (ratio <= 3.5) return 78;
+  if (ratio <= 4.5) return 65;
+  if (ratio <= 5.5) return 52;
+  if (ratio <= 7.0) return 38;
+  return 25;
+}
+
+function violentCrimeScore(countyFips, pop) {
+  const c = crimeData[countyFips];
+  if (!c || !c.violent_crime || c.violent_crime === 0 || !pop || pop <= 0) return null;
+  const rate = (c.violent_crime / pop) * 100000;
+  // US avg ~380/100k. Tiers calibrated to national distribution.
+  if (rate < 100)  return 99;
+  if (rate < 200)  return 90;
+  if (rate < 300)  return 80;
+  if (rate < 400)  return 70;
+  if (rate < 500)  return 60;
+  if (rate < 650)  return 48;
+  if (rate < 800)  return 36;
+  return 24;
+}
+
+function composite(housing, safety, schools) {
+  const parts = [];
+  if (housing != null) parts.push({ v: housing, w: 0.45 });
+  if (safety  != null) parts.push({ v: safety,  w: 0.25 });
+  if (schools != null) parts.push({ v: schools, w: 0.30 });
+  if (!parts.length) return null;
+  const tw = parts.reduce((s, p) => s + p.w, 0);
+  return Math.round(parts.reduce((s, p) => s + p.v * p.w, 0) / tw);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SORT
+// ═══════════════════════════════════════════════════════════════════════════════
+function setSort(key) {
+  sortKey = key;
+  // Update button states
+  document.querySelectorAll('.sort-btn').forEach(b => {
+    b.classList.toggle('active', b.classList.contains('s-' + (key === 'score' ? 'overall' : key)));
+  });
+  // Recolor map immediately
+  updateMapColors();
+  // Re-render list
+  if (curLevel === 'nation') renderStates();
+  else if (curLevel === 'state' && lastCountyFeatures) renderCounties(lastCountyFeatures);
+  else if (curLevel === 'county' && lastPlaces) renderPlaces(lastPlaces, lastCountyFips, lastCountyName);
+}
+
+// Returns the value and color for the currently active sort dimension
+function activeVal(item) {
+  const key = sortKey === 'score' ? 'score' : sortKey;
+  // map sortKey to the right color
+  const colors = { score:'', housing:'var(--housing)', safety:'var(--safety)', schools:'var(--schools)' };
+  const v = item[key];
+  const valid = (v != null && v > 0);
+  return {
+    val:   valid ? v : null,
+    color: valid ? (sortKey === 'score' ? scoreColor(v) : colors[key]) : 'var(--faint)',
+    display: valid ? v : 'NULL'
+  };
+}
+
+function sortItems(items) {
+  return [...items].sort((a, b) => {
+    const av = a[sortKey] || 0, bv = b[sortKey] || 0;
+    if (bv !== av) return bv - av;
+    return (b.score || 0) - (a.score || 0); // tiebreak by overall
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RENDER LISTS
+// ═══════════════════════════════════════════════════════════════════════════════
+function renderStates() {
+  document.getElementById('sort-bar').classList.add('visible');
+  const items = sortItems(Object.values(stateData));
+  showAvgs(items);
+  const sortLabel = sortKey === 'score' ? 'overall score' : sortKey;
+  document.getElementById('list').innerHTML =
+    `<div class="list-hd">${items.length} States — by ${sortLabel}</div>` +
+    items.map(s => { const av = activeVal(s); return `
+      <div class="row" onclick="onStateClick('${pad2(s.fips)}', '${s.name}')">
+        <div class="row-body">
+          <div class="row-name">${s.name}</div>
+          <div class="row-bar"><div class="row-fill" style="width:${av.val||0}%;background:${av.color}"></div></div>
+          <div class="row-meta">
+            <span style="color:${sortKey==='housing'?'var(--text)':'var(--housing)'}">H:${fmtS(s.housing)}</span>
+            <span style="color:${sortKey==='safety' ?'var(--text)':'var(--safety)' }">Sf:${fmtS(s.safety)}</span>
+            <span style="color:${sortKey==='schools'?'var(--text)':'var(--schools)'}">Sc:${fmtS(s.schools)}</span>
+          </div>
+        </div>
+        <div class="row-score" style="color:${av.color}">${av.display}</div>
+      </div>`; }).join('');
+  setFooter(items.length + ' states');
+}
+
+function renderCounties(features) {
+  lastCountyFeatures = features;
+  document.getElementById('sort-bar').classList.add('visible');
+  const all = features.map(f => ({ fips: pad5(f.id), ...f.properties })).filter(c => c.score > 0);
+  const items = sortItems(all);
+  showAvgs(items);
+  const sortLabel = sortKey === 'score' ? 'overall score' : sortKey;
+  document.getElementById('list').innerHTML =
+    `<div class="list-hd">${items.length} Counties — by ${sortLabel}</div>` +
+    items.map(c => {
+      const cd = crimeData[c.fips];
+      const hasCrime = cd && cd.violent_crime > 0;
+      const crTag = hasCrime
+        ? `<span style="color:var(--safety)" class="tag">● FBI</span>`
+        : `<span style="color:var(--faint)" class="tag">○ no FBI</span>`;
+      return `<div class="row" onclick="onCountyClick('${c.fips}', '${(c.name||'').replace(/'/g, "\\'")}')">
+        <div class="row-body">
+          <div class="row-name">${c.name || c.fips}</div>
+          <div class="row-bar"><div class="row-fill" style="width:${c.score||0}%;background:${scoreColor(c.score)}"></div></div>
+          <div class="row-meta">
+            <span style="color:var(--housing)">H:${fmtS(c.housing)}</span>
+            <span style="color:var(--safety)">Sf:${fmtS(c.safety)}</span>
+            <span style="color:var(--schools)">Sc:${fmtS(c.schools)}</span>
+            ${crTag}
+          </div>
+        </div>
+        <div class="row-score" style="color:${scoreColor(c.score)}">${fmtS(c.score)}</div>
+      </div>`;
+    }).join('');
+  setFooter(items.length + ' counties');
+}
+
+function renderPlaces(places, countyFips, countyName) {
+  lastPlaces = places; lastCountyFips = countyFips; lastCountyName = countyName;
+  if (!places || places.length === 0) {
+    document.getElementById('list').innerHTML =
+      `<div class="list-msg"><div class="em">🏘</div>No Census-designated places found for ${countyName}.<br><span style="font-size:11px">Try a neighboring county.</span></div>`;
+    return;
+  }
+
+  showAvgs(places);
+
+  // Crime banner
+  const cd = crimeData[countyFips];
+  const violentCt = cd?.violent_crime || 0;
+  const murderCt  = cd?.murder || 0;
+  const cPop      = countyData[countyFips]?.pop || 0;
+  const hasCrime  = violentCt > 0 && cPop > 0;
+  let banner;
+  if (hasCrime) {
+    const rate = ((violentCt / cPop) * 100000).toFixed(0);
+    const mPart = murderCt > 0 ? ` · ${murderCt} murder${murderCt !== 1 ? 's' : ''}` : '';
+    banner = `<div class="banner crime">🔴 <strong>${Number(violentCt).toLocaleString()}</strong> violent crimes in county (${rate}/100k${mPart}) — 2024 FBI</div>`;
+  } else {
+    banner = `<div class="banner nocrime">⚪ No FBI violent crime data for this county — safety score not computed</div>`;
+  }
+
+  document.getElementById('sort-bar').classList.add('visible');
+  const sortedPlaces = sortItems(places);
+  const sortLabel = sortKey === 'score' ? 'overall score' : sortKey;
+  document.getElementById('list').innerHTML =
+    `<div class="list-hd">${sortedPlaces.length} Places in ${countyName} — by ${sortLabel}</div>` +
+    banner +
+    sortedPlaces.map(p => {
+      const sf = p.safety  != null ? `${p.safety}<span class="tag" style="color:var(--faint)"> FBI</span>` : `<span style="color:var(--faint)">NULL</span>`;
+      const sc = p.schools != null ? `${p.schools}<span class="tag" style="color:var(--faint)"> NCES</span>` : `<span style="color:var(--faint)">NULL</span>`;
+      const av = activeVal(p);
+      return `<div class="row no-click">
+        <div class="row-body">
+          <div class="row-name">${p.name}</div>
+          <div class="row-bar"><div class="row-fill" style="width:${av.val||0}%;background:${av.color}"></div></div>
+          <div class="row-meta">
+            <span style="color:${sortKey==='housing'?'var(--text)':'var(--housing)'}">H:${fmtS(p.housing)}</span>
+            <span style="color:${sortKey==='safety' ?'var(--text)':'var(--safety)' }">Sf:${sf}</span>
+            <span style="color:${sortKey==='schools'?'var(--text)':'var(--schools)'}">Sc:${sc}</span>
+          </div>
+          <div class="row-meta" style="margin-top:3px">
+            <span>Income $${fmt(p.income)}</span>
+            <span>Rent $${fmt(p.rent)}/mo</span>
+            <span>Home $${fmt(p.homeVal)}</span>
+          </div>
+        </div>
+        <div class="row-score" style="color:${av.color}">${av.display}</div>
+      </div>`;
+    }).join('');
+  setFooter(`${places.length} places · Census ACS 2022`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// API CALLS
+// ═══════════════════════════════════════════════════════════════════════════════
+async function fetchSchoolScore(stateFips, countyFips) {
+  const key = countyFips || stateFips;
+  if (key in schoolCache) return schoolCache[key];
+  try {
+    const sf  = parseInt(stateFips);
+    const cf  = countyFips ? parseInt(countyFips.slice(2)) : null;
+    const url = `${NCES_URL}?fips=${sf}${cf ? '&county_code=' + cf : ''}&year=2021&fields=title_i_status,magnet&limit=200`;
+    const res = await fetch(url);
+    if (!res.ok) { schoolCache[key] = null; return null; }
+    const json = await res.json();
+    const results = json?.results || [];
+    if (!results.length) { schoolCache[key] = null; return null; }
+    const ti  = results.filter(s => s.title_i_status === '1' || s.title_i_status === '2').length;
+    const mag = results.filter(s => s.magnet === 1).length;
+    let score = Math.round(95 - (ti / results.length) * 55);
+    if (mag > 0) score = Math.min(99, score + 5);
+    score = Math.max(20, Math.min(99, score));
+    schoolCache[key] = score;
+    return score;
+  } catch(e) { schoolCache[key] = null; return null; }
+}
+
+async function fetchPlaces(stateFips, countyFips) {
+  if (placeCache[countyFips]) return placeCache[countyFips];
+  const vars = 'NAME,B25077_001E,B19013_001E,B25064_001E,B01003_001E,B15003_022E';
+  try {
+    const [censusRes, schoolScore] = await Promise.all([
+      fetch(`${CENSUS_URL}?get=${vars}&for=place:*&in=state:${stateFips}`),
+      fetchSchoolScore(stateFips, countyFips)
+    ]);
+
+    if (!censusRes.ok) return null;
+    const raw = await censusRes.json();
+    if (!raw || raw.length < 2) return null;
+
+    const h   = raw[0];
+    const iN  = h.indexOf('NAME'),      iHV = h.indexOf('B25077_001E');
+    const iI  = h.indexOf('B19013_001E'),iR  = h.indexOf('B25064_001E');
+    const iP  = h.indexOf('B01003_001E'),iBA = h.indexOf('B15003_022E');
+
+    // County-level violent crime score (preloaded, no extra API call)
+    const cRec   = countyData[countyFips];
+    const cPop   = cRec?.pop || 0;
+    const mScore = violentCrimeScore(countyFips, cPop);
+
+    const places = raw.slice(1).map(row => {
+      const homeVal = parseInt(row[iHV]) || 0;
+      const income  = parseInt(row[iI])  || 0;
+      const rent    = parseInt(row[iR])  || 0;
+      const pop     = parseInt(row[iP])  || 0;
+      const ba      = parseInt(row[iBA]) || 0;
+      if (income <= 0 || pop < 100) return null;
+
+      const housing = housingScore(homeVal, income);
+
+      // Safety: county violent crime score ± income proxy
+      let safety = null;
+      if (mScore !== null) {
+        const adj = income > 80000 ? 4 : income > 60000 ? 2 : income > 40000 ? 0 : -3;
+        safety = Math.min(99, Math.max(20, mScore + adj));
+      }
+
+      // Schools: NCES county score ± BA attainment
+      let schools = null;
+      if (schoolScore !== null) {
+        const edR = pop > 0 ? ba / pop : 0;
+        const adj = edR > 0.35 ? 8 : edR > 0.2 ? 4 : edR > 0.1 ? 0 : -5;
+        schools = Math.min(99, Math.max(20, schoolScore + adj));
+      }
+
+      const score = composite(housing, safety, schools);
+      const name  = row[iN] ? row[iN].split(',')[0].trim() : 'Unknown';
+      return { name, score, housing, safety, schools, income, rent, pop, homeVal };
+    }).filter(Boolean).sort((a, b) => b.score - a.score);
+
+    placeCache[countyFips] = places;
+    return places;
+  } catch(e) {
+    console.error('Census fetch error:', e);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAP LAYERS
+// ═══════════════════════════════════════════════════════════════════════════════
+function pad2(id) { return String(id).padStart(2, '0'); }
+function pad5(id) { return String(id).padStart(5, '0'); }
+
+async function loadStateLayer() {
+  spin(true, 'Loading states…');
+  ['sf','sl','cf','cl'].forEach(rmLayer);
+  ['states','counties'].forEach(rmSource);
+
+  const res  = await fetch(`${TOPO}/states-10m.json`);
+  const topo = await res.json();
+  const geo  = topojson.feature(topo, topo.objects.states);
+
+  // Attach scores
+  geo.features = geo.features.map(f => {
+    const fips = pad2(f.id);
+    const s    = stateData[fips] || {};
+    return { ...f, id: Number(f.id), properties: { ...s, fips, name: STATES[fips] || fips } };
+  });
+
+  map.addSource('states', { type: 'geojson', data: geo, promoteId: 'fips' });
+  map.addLayer({ id: 'sf', type: 'fill', source: 'states', paint: {
+    'fill-color': colorExpr(),
+    'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.88, 0.72]
+  }});
+  map.addLayer({ id: 'sl', type: 'line', source: 'states', paint: {
+    'line-color': '#080810', 'line-width': 1
+  }});
+
+  setupHoverAndClick('sf', 'states',
+    f => STATES[pad2(f.id)] || '',
+    f => onStateClick(pad2(f.id), STATES[pad2(f.id)] || pad2(f.id))
+  );
+  spin(false);
+}
+
+async function loadCountyLayer(stateFips, stateName) {
+  spin(true, 'Loading counties…');
+  document.getElementById('list').innerHTML = `<div class="list-msg"><div class="em">⏳</div>Loading ${stateName} counties…</div>`;
+
+  ['cf','cl'].forEach(rmLayer);
+  rmSource('counties');
+  // Fade state layer to background
+  if (map.getLayer('sf')) map.setPaintProperty('sf', 'fill-opacity', 0.25);
+
+  const res  = await fetch(`${TOPO}/counties-10m.json`);
+  const topo = await res.json();
+  const all  = topojson.feature(topo, topo.objects.counties);
+  const sf   = stateFips.padStart(2, '0');
+
+  const geo  = {
+    type: 'FeatureCollection',
+    features: all.features
+      .filter(f => pad5(f.id).startsWith(sf))
+      .map(f => {
+        const fips = pad5(f.id);
+        const c    = countyData[fips] || {};
+        return { ...f, id: Number(f.id), properties: { ...c, fips, name: c.name || fips } };
+      })
+  };
+
+  map.addSource('counties', { type: 'geojson', data: geo, promoteId: 'fips' });
+  map.addLayer({ id: 'cf', type: 'fill', source: 'counties', paint: {
+    'fill-color': colorExpr(),
+    'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.92, 0.80]
+  }});
+  map.addLayer({ id: 'cl', type: 'line', source: 'counties', paint: {
+    'line-color': '#080810', 'line-width': 0.5
+  }});
+
+  setupHoverAndClick('cf', 'counties',
+    f => f.properties.name || f.properties.fips,
+    f => onCountyClick(pad5(f.id), f.properties.name || pad5(f.id)),
+    f => pad5(f.id)
+  );
+
+  // Fit map to state
+  const coords = geo.features.flatMap(f => {
+    const g = f.geometry;
+    if (g.type === 'Polygon')      return g.coordinates.flat();
+    if (g.type === 'MultiPolygon') return g.coordinates.flat(2);
+    return [];
+  });
+  if (coords.length) {
+    const lons = coords.map(c => c[0]), lats = coords.map(c => c[1]);
+    map.fitBounds(
+      [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+      { padding: 40, duration: 700, maxZoom: 9 }
+    );
+  }
+
+  renderCounties(geo.features);
+  spin(false);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════════════
+async function goNation() {
+  curLevel = 'nation'; curStateFips = null;
+  setBreadcrumb([{ label: 'United States' }]);
+  setHint('Click a state to explore');
+  // Restore state layer opacity, remove counties
+  ['cf','cl'].forEach(rmLayer); rmSource('counties');
+  if (map.getLayer('sf')) {
+    map.setPaintProperty('sf', 'fill-opacity',
+      ['case', ['boolean', ['feature-state', 'hover'], false], 0.88, 0.72]);
+  }
+  map.flyTo({ center: [-96, 38.5], zoom: 3.4, duration: 800 });
+  renderStates();
+}
+
+async function onStateClick(fips, name) {
+  curLevel = 'state'; curStateFips = fips;
+  setBreadcrumb([
+    { label: 'United States', fn: 'goNation()' },
+    { label: name }
+  ]);
+  setHint('Click a county to explore');
+  await loadCountyLayer(fips, name);
+}
+
+async function onCountyClick(fips, name) {
+  curLevel = 'county';
+  const stateName = STATES[curStateFips] || '';
+  const sf        = curStateFips;
+  setBreadcrumb([
+    { label: 'United States', fn: 'goNation()' },
+    { label: stateName,       fn: `onStateClick('${sf}','${stateName}')` },
+    { label: name }
+  ]);
+  setHint('Showing places & towns');
+  spin(true, 'Fetching places…');
+  document.getElementById('list').innerHTML =
+    `<div class="list-msg"><div class="em">⏳</div>Fetching Census places…<br><span style="font-size:11px;color:var(--muted)">Census ACS 2022 + NCES</span></div>`;
+
+  const stateFips = fips.slice(0, 2);
+  const places    = await fetchPlaces(stateFips, fips);
+  renderPlaces(places, fips, name);
+  spin(false);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════════════════
+async function launch() {
+  const tok = document.getElementById('mb-tok').value.trim();
+  if (!tok.startsWith('pk.')) {
+    document.getElementById('mb-err').style.display = 'block';
+    return;
+  }
+  document.getElementById('mb-err').style.display = 'none';
+  document.getElementById('setup').style.display  = 'none';
+  spin(true, 'Loading data…');
+
+  // Load all three JSON files in parallel
+  const [sRes, cRes, fRes] = await Promise.all([
+    fetch(`${GH}/scores-states.json`),
+    fetch(`${GH}/scores-counties.json`),
+    fetch(`${GH}/crimes-counties.json`)
+  ]);
+
+  if (sRes.ok) {
+    const arr = await sRes.json();
+    arr.forEach(x => { stateData[pad2(x.fips)] = x; });
+    console.log('States loaded:', Object.keys(stateData).length);
+  }
+  if (cRes.ok) {
+    const arr = await cRes.json();
+    arr.forEach(x => { countyData[pad5(x.fips)] = x; });
+    console.log('Counties loaded:', Object.keys(countyData).length);
+  }
+  if (fRes.ok) {
+    crimeData = await fRes.json();
+    console.log('Crime records loaded:', Object.keys(crimeData).length);
+  }
+
+  // Init Mapbox
+  mapboxgl.accessToken = tok;
+  map = new mapboxgl.Map({
+    container:    'map',
+    style:        'mapbox://styles/mapbox/dark-v11',
+    center:       [-96, 38.5],
+    zoom:         3.4,
+    minZoom:      2,
+    maxZoom:      14,
+    dragRotate:   false,
+    touchPitch:   false,
+  });
+  map.touchZoomRotate.disableRotation();
+  map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+
+  map.on('load', async () => {
+    await loadStateLayer();
+    renderStates();
+    setBreadcrumb([{ label: 'United States' }]);
+    spin(false);
+  });
+}
+
+// ── FAQ DRAWER ──────────────────────────────────────────────────────────────
+function openFaq() {
+  document.getElementById('faq-drawer').classList.add('open');
+  document.getElementById('faq-overlay').classList.add('show');
+}
+function closeFaq() {
+  document.getElementById('faq-drawer').classList.remove('open');
+  document.getElementById('faq-overlay').classList.remove('show');
+}
+function faqToggle(btn) {
+  btn.closest('.faq-item').classList.toggle('open');
+}
+function faqTab(btn, cat) {
+  // Update active tab
+  document.querySelectorAll('.faq-tab').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  // Show/hide sections and items
+  const all = cat === 'all';
+  document.querySelectorAll('[data-cat]').forEach(el => {
+    el.style.display = (all || el.dataset.cat === cat) ? '' : 'none';
+  });
+  // Scroll drawer back to top
+  document.getElementById('faq-body').scrollTop = 0;
+}
+
+</script>
+
+<!-- ── FAQ OVERLAY ── -->
+<div id="faq-overlay" onclick="closeFaq()"></div>
+
+<!-- ── FAQ DRAWER ── -->
+<div id="faq-drawer">
+  <div class="faq-dhead">
+    <div class="faq-dtitle">How setyl<span>.</span> works</div>
+    <button class="faq-close" onclick="closeFaq()">✕</button>
+  </div>
+  <div class="faq-tabs">
+    <button class="faq-tab t-all on"     onclick="faqTab(this,'all')">All</button>
+    <button class="faq-tab t-housing"    onclick="faqTab(this,'housing')">Affordability</button>
+    <button class="faq-tab t-safety"     onclick="faqTab(this,'safety')">Safety</button>
+    <button class="faq-tab t-schools"    onclick="faqTab(this,'schools')">Schools</button>
+    <button class="faq-tab t-score"      onclick="faqTab(this,'score')">Overall Score</button>
+    <button class="faq-tab t-limits"     onclick="faqTab(this,'limits')">Limitations</button>
+  </div>
+  <div class="faq-body" id="faq-body">
+
+    <!-- AFFORDABILITY -->
+    <div class="faq-sec" data-cat="housing">
+      <div class="faq-sec-tag" style="color:var(--housing)">Category 01 — Affordability</div>
+      <h2 style="color:var(--housing)">Affordability</h2>
+    </div>
+    <div class="faq-item" data-cat="housing">
+      <button class="faq-q" onclick="faqToggle(this)">What does Affordability measure?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <p>The ratio of <strong>median home value</strong> to <strong>median household income</strong>. A ratio of 3.0 means the median home costs 3× the median annual income — a widely-used rule of thumb for "affordable." A ratio above 5 is considered severely unaffordable.</p>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="housing">
+      <button class="faq-q" onclick="faqToggle(this)">How is the score calculated?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <div class="formula">
+<span class="cm">// ratio = median home value ÷ median income</span>
+<span class="vh">ratio ≤ 2.5  →  95  (very affordable)</span>
+<span class="vh">ratio ≤ 3.0  →  87</span>
+<span class="vh">ratio ≤ 3.5  →  78</span>
+<span class="vh">ratio ≤ 4.5  →  65</span>
+<span class="vh">ratio ≤ 5.5  →  52</span>
+<span class="vh">ratio ≤ 7.0  →  38</span>
+<span class="vh">ratio  > 7.0  →  25  (severely unaffordable)</span></div>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="housing">
+      <button class="faq-q" onclick="faqToggle(this)">Where does the data come from?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <p><span class="spill sp-c">Census ACS</span></p>
+        <p><strong>Source:</strong> US Census Bureau — American Community Survey 5-Year Estimates (2022)</p>
+        <p><code style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--housing)">B25077_001E</code> — Median home value &nbsp;·&nbsp; <code style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--housing)">B19013_001E</code> — Median household income</p>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="housing">
+      <button class="faq-q" onclick="faqToggle(this)">When was this last updated?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <div class="ubadge"><span class="dot" style="background:var(--housing)"></span>ACS 5-Year Estimates · 2022 release</div>
+        <p>Covers 2018–2022. The Census Bureau releases new 5-year estimates each December. State and county pre-scored data was compiled in early 2025.</p>
+      </div></div>
+    </div>
+
+    <!-- SAFETY -->
+    <div class="faq-sec" data-cat="safety" style="margin-top:12px">
+      <div class="faq-sec-tag" style="color:var(--safety)">Category 02 — Safety</div>
+      <h2 style="color:var(--safety)">Safety</h2>
+    </div>
+    <div class="faq-item" data-cat="safety">
+      <button class="faq-q" onclick="faqToggle(this)">What does Safety measure?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <p>The <strong>violent crime rate per 100,000 residents</strong> in a county. Violent crime includes murder, rape, robbery, and aggravated assault as defined by the FBI UCR program.</p>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="safety">
+      <button class="faq-q" onclick="faqToggle(this)">How is the score calculated?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <div class="formula">
+<span class="cm">// rate = violent crimes ÷ population × 100,000</span>
+<span class="cm">// US national avg ≈ 380/100k</span>
+<span class="vs">rate &lt; 100  →  99  (very safe)</span>
+<span class="vs">rate &lt; 200  →  90</span>
+<span class="vs">rate &lt; 300  →  80</span>
+<span class="vs">rate &lt; 400  →  70</span>
+<span class="vs">rate &lt; 500  →  60</span>
+<span class="vs">rate &lt; 650  →  48</span>
+<span class="vs">rate &lt; 800  →  36</span>
+<span class="vs">rate ≥ 800  →  24  (high crime)</span></div>
+        <p>At the town level, the county score is nudged ±4 pts by local median income as a within-county proxy.</p>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="safety">
+      <button class="faq-q" onclick="faqToggle(this)">Where does the data come from?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <p><span class="spill sp-f">FBI CIUS</span></p>
+        <p><strong>Source:</strong> FBI Crime in the United States — Table 10: Offenses Known to Law Enforcement by County, 2024 release. Covers 2,416 counties.</p>
+        <p>Population denominators: Census ACS <code style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--safety)">B01003_001E</code>.</p>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="safety">
+      <button class="faq-q" onclick="faqToggle(this)">When was this last updated?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <div class="ubadge"><span class="dot" style="background:var(--safety)"></span>FBI CIUS Table 10 · 2024 release</div>
+        <p>Covers calendar year 2023 incidents. Published annually in fall of the following year. Loaded from a pre-processed snapshot (the FBI's public API was taken offline in early 2025).</p>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="safety">
+      <button class="faq-q" onclick="faqToggle(this)">Why is Safety NULL for some counties?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <p>Not all agencies report to the FBI. About <strong>40% of counties</strong> have missing or incomplete data, especially rural areas. A reported value of 0 is treated as "no data" not "zero crime" — safety is excluded from that area's composite score rather than assumed safe.</p>
+      </div></div>
+    </div>
+
+    <!-- SCHOOLS -->
+    <div class="faq-sec" data-cat="schools" style="margin-top:12px">
+      <div class="faq-sec-tag" style="color:var(--schools)">Category 03 — Schools</div>
+      <h2 style="color:var(--schools)">Schools</h2>
+    </div>
+    <div class="faq-item" data-cat="schools">
+      <button class="faq-q" onclick="faqToggle(this)">What does Schools measure?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <p>The concentration of <strong>Title I public schools</strong> in a county. Title I designates schools where 40%+ of students qualify for free or reduced-price lunch. <strong>K–12 only</strong> — no private schools or colleges.</p>
+        <p>Higher score = fewer Title I schools = lower poverty concentration in schools.</p>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="schools">
+      <button class="faq-q" onclick="faqToggle(this)">How is the score calculated?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <div class="formula">
+<span class="cm">// ratio = Title I schools ÷ total schools in county</span>
+score = 95 − (ratio × 55)
+<span class="vsc">if magnet schools exist: score += 5</span>
+score = clamp(score, 20, 99)
+
+<span class="cm">// Town-level BA degree attainment adjustment</span>
+<span class="vsc">BA rate > 35%  →  +8 pts</span>
+<span class="vsc">BA rate > 20%  →  +4 pts</span>
+<span class="vsc">BA rate > 10%  →   0 pts</span>
+<span class="vsc">BA rate ≤ 10%  →  −5 pts</span></div>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="schools">
+      <button class="faq-q" onclick="faqToggle(this)">Where does the data come from?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <p><span class="spill sp-n">NCES CCD</span></p>
+        <p><strong>Source:</strong> National Center for Education Statistics — Common Core of Data, accessed live via the <a href="https://educationdata.urban.org" target="_blank">Urban Institute Education Data API</a>. Covers ~130,000 public K–12 schools.</p>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="schools">
+      <button class="faq-q" onclick="faqToggle(this)">Is this measuring actual school quality?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <div class="lbox"><strong>Important:</strong> This is a socioeconomic proxy, not a direct quality measure.</div>
+        <p>We don't measure test scores, graduation rates, student-teacher ratios, AP availability, or state report card grades. A wealthy suburb with mediocre schools scores the same as one with excellent schools if Title I concentration is equal.</p>
+        <p>The score is also calculated at the <strong>county level</strong> — individual school districts within a county are not differentiated.</p>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="schools">
+      <button class="faq-q" onclick="faqToggle(this)">When was this last updated?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <div class="ubadge"><span class="dot" style="background:var(--schools)"></span>NCES CCD · 2021–22 school year · fetched live</div>
+        <p>School data is fetched fresh from the Urban Institute API each time you drill into a county. It is not cached between sessions.</p>
+      </div></div>
+    </div>
+
+    <!-- OVERALL SCORE -->
+    <div class="faq-sec" data-cat="score" style="margin-top:12px">
+      <div class="faq-sec-tag" style="color:#a78bfa">Overall Score</div>
+      <h2 style="color:#a78bfa">Overall Score</h2>
+    </div>
+    <div class="faq-item" data-cat="score">
+      <button class="faq-q" onclick="faqToggle(this)">How is the Overall Score calculated?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <div class="formula">
+<span class="cm">// Weighted average of available categories</span>
+overall = (<span class="vh">housing × 0.45</span> + <span class="vs">safety × 0.25</span> + <span class="vsc">schools × 0.30</span>)
+        ÷ sum_of_weights_for_available_data
+
+<span class="cm">// If safety is NULL, weights rebalance:</span>
+overall = (<span class="vh">housing × 0.45</span> + <span class="vsc">schools × 0.30</span>) ÷ 0.75
+
+<span class="cm">// If schools also NULL:</span>
+overall = <span class="vh">housing score only</span></div>
+        <p>NULL scores are <strong>excluded</strong> — they don't drag the composite down or get treated as zero.</p>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="score">
+      <button class="faq-q" onclick="faqToggle(this)">What do score numbers mean?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <table class="ftable">
+          <tr><th>Score</th><th>Meaning</th></tr>
+          <tr><td style="color:var(--safety)">80–99</td><td>Excellent across most dimensions</td></tr>
+          <tr><td style="color:#7ed87a">65–79</td><td>Strong — above national average</td></tr>
+          <tr><td style="color:#c8d545">55–64</td><td>Good — near national average</td></tr>
+          <tr><td style="color:var(--housing)">45–54</td><td>Fair — some tradeoffs</td></tr>
+          <tr><td style="color:#f07830">35–44</td><td>Below average</td></tr>
+          <tr><td style="color:var(--danger)">0–34</td><td>Significant challenges</td></tr>
+        </table>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="score">
+      <button class="faq-q" onclick="faqToggle(this)">Why is Affordability weighted highest?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <p>Affordability (45%) uses precise Census figures with a clear, universal formula — it's the most directly measurable category and the primary intent of the app.</p>
+        <p>Safety (25%) and Schools (30%) use proxy measures and their importance varies significantly by life stage — a single renter weighs them differently than a family with school-age children.</p>
+      </div></div>
+    </div>
+
+    <!-- LIMITATIONS -->
+    <div class="faq-sec" data-cat="limits" style="margin-top:12px">
+      <div class="faq-sec-tag" style="color:var(--danger)">Limitations</div>
+      <h2 style="color:var(--danger)">What This Doesn't Tell You</h2>
+    </div>
+    <div class="faq-item" data-cat="limits">
+      <button class="faq-q" onclick="faqToggle(this)">Biggest limitations?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <div class="lbox"><strong>Town-level safety and schools are county-level data applied uniformly.</strong> Every town in a county shares the same base score, adjusted only slightly by local income and education attainment.</div>
+        <p><strong>Crime data has gaps.</strong> ~40% of counties have incomplete FBI data. These show NULL, not zero.</p>
+        <p><strong>ACS data is a survey estimate.</strong> For small towns (&lt;5,000 people), margins of error can be large.</p>
+        <p><strong>No walkability, jobs, or climate data.</strong> Commute times, job markets, weather, disaster risk, and cost of living beyond housing are not included.</p>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="limits">
+      <button class="faq-q" onclick="faqToggle(this)">How current is everything?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <table class="ftable">
+          <tr><th>Dataset</th><th>Coverage</th><th>Updated</th></tr>
+          <tr><td>Census ACS</td><td>2018–2022</td><td>2022 release</td></tr>
+          <tr><td>FBI CIUS</td><td>2023 incidents</td><td>2024 release</td></tr>
+          <tr><td>NCES CCD</td><td>2021–22 year</td><td>Live API</td></tr>
+        </table>
+        <p>Real estate markets can move faster than Census data. Always verify affordability with current listings.</p>
+      </div></div>
+    </div>
+    <div class="faq-item" data-cat="limits" style="margin-bottom:32px">
+      <button class="faq-q" onclick="faqToggle(this)">Should I use this to decide where to move?<span class="faq-chevron">+</span></button>
+      <div class="faq-a"><div class="faq-a-inner">
+        <p>These scores are a <strong>starting point</strong>, not a final recommendation. Use them to narrow down regions and identify areas worth exploring — then visit in person, check current listings, research specific neighborhoods, and talk to residents.</p>
+      </div></div>
+    </div>
+
+  </div><!-- end faq-body -->
+</div><!-- end faq-drawer -->
+
+</body>
+</html>
